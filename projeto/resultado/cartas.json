@@ -1,0 +1,40 @@
+{
+  "cartas": [
+    {
+      "arquivo": "0001_Piplup_239-236_BR.jpg",
+      "nome": "Piplup",
+      "numero": "239/236",
+      "idioma": "BR"
+    },
+    {
+      "arquivo": "0002_Koffing_243-236_BR.jpg",
+      "nome": "Koffing",
+      "numero": "243/236",
+      "idioma": "BR"
+    },
+    {
+      "arquivo": "0003_Darkrai_77-156_BR.jpg",
+      "nome": "Darkrai ◇",
+      "numero": "77/156",
+      "idioma": "BR"
+    },
+    {
+      "arquivo": "0004_Blastoise_EX_XY122_BR.jpg",
+      "nome": "Blastoise EX",
+      "numero": "XY122",
+      "idioma": "BR"
+    },
+    {
+      "arquivo": "0005_DESCONHECIDA_DESCONHECIDO_Outro.jpg",
+      "nome": "DESCONHECIDA",
+      "numero": "DESCONHECIDO",
+      "idioma": "Outro"
+    },
+    {
+      "arquivo": "0006_M_Camerupt-EX_XY198_BR.jpg",
+      "nome": "M Camerupt-EX",
+      "numero": "XY198",
+      "idioma": "BR"
+    }
+  ]
+}
