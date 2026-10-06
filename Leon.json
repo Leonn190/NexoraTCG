@@ -663,8 +663,8 @@
   },
   {
     "nome": "Sableye",
-    "numeracao": "XY92",
-    "link": "https://mypcards.com/pokemon/produto/441799/sableye",
+    "numeracao": "92/211",
+    "link": "https://mypcards.com/pokemon/produto/41785/sableye",
     "quantidade": 2,
     "estado": "HP",
     "lingua": "Português"
@@ -769,9 +769,13 @@
     "nome": "Oddish",
     "numeracao": "006/214",
     "link": "https://mypcards.com/pokemon/produto/89187/oddish",
-    "quantidade": 1,
-    "estado": "NM",
-    "lingua": "Português"
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
   },
   {
     "nome": "Vileplume",
@@ -1463,8 +1467,8 @@
   },
   {
     "nome": "Substituição de Energia",
-    "numeracao": "115/132",
-    "link": "https://mypcards.com/pokemon/produto/294364/substituicao-de-energia",
+    "numeracao": "107/084",
+    "link": "https://mypcards.com/pokemon/produto/362048/substituicao-de-energia",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -2417,7 +2421,7 @@
   {
     "nome": "Tapu Lele-GX",
     "numeracao": "060/145",
-    "link": "https://mypcards.com/pokemon/produto/40207/tapu-lele-gx",
+    "link": "https://mypcards.com/pokemon/produto/144271/tapu-lele",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -3097,7 +3101,7 @@
   {
     "nome": "Sliggoo",
     "numeracao": "095/086",
-    "link": "https://mypcards.com/pokemon/produto/285578/sliggoo",
+    "link": "https://mypcards.com/pokemon/produto/325075/sliggoo",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -3656,8 +3660,8 @@
   },
   {
     "nome": "Ash-Greninja-EX",
-    "numeracao": "XY133",
-    "link": "https://mypcards.com/pokemon/produto/107560/ash-greninja-ex",
+    "numeracao": "133/211",
+    "link": "https://mypcards.com/pokemon/produto/41826/ash-greninja-ex",
     "quantidade": 1,
     "estado": "MP",
     "lingua": "Português"
@@ -4209,12 +4213,11 @@
   },
   {
     "nome": "Latios",
-    "numeracao": "XY79",
-    "link": "https://mypcards.com/pokemon/produto/107555/latios",
+    "numeracao": "79/211",
+    "link": "https://mypcards.com/pokemon/produto/41772/latios",
     "quantidade": 1,
     "estado": "D",
-    "lingua": "Português",
-    "foil": "Foil - Full Art Promo"
+    "lingua": "Português"
   },
   {
     "nome": "Cartão Vermelho Especial",
@@ -4274,7 +4277,7 @@
   },
   {
     "nome": "Espadarnaldo e Escudoberto",
-    "numeracao": "TG28/195",
+    "numeracao": "TG28/TG30",
     "link": "https://mypcards.com/pokemon/produto/175000/espadarnaldo-e-escudoberto",
     "quantidade": 1,
     "estado": "NM",
@@ -4298,7 +4301,7 @@
   },
   {
     "nome": "Amigos em Galar",
-    "numeracao": "TG23/195",
+    "numeracao": "TG23/TG30",
     "link": "https://mypcards.com/pokemon/produto/174995/amigos-em-galar",
     "quantidade": 1,
     "estado": "NM",
@@ -5146,9 +5149,9 @@
   },
   {
     "nome": "Clefairy ex da Lílian",
-    "numeracao": "173/159",
-    "link": "https://mypcards.com/pokemon/produto/267900/clefairy-ex-da-lilian",
-    "quantidade": 2,
+    "numeracao": "195",
+    "link": "https://mypcards.com/pokemon/produto/272808/clefairy-ex-da-lilian",
+    "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
   },
@@ -5162,8 +5165,8 @@
   },
   {
     "nome": "Bellibolt ex da Kissera",
-    "numeracao": "172/159",
-    "link": "https://mypcards.com/pokemon/produto/267899/bellibolt-ex-da-kissera",
+    "numeracao": "194",
+    "link": "https://mypcards.com/pokemon/produto/270324/bellibolt-ex-da-kissera",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -5194,8 +5197,8 @@
   },
   {
     "nome": "Fezandipiti ex",
-    "numeracao": "092/064",
-    "link": "https://mypcards.com/pokemon/produto/245349/fezandipiti-ex",
+    "numeracao": "288/217",
+    "link": "https://mypcards.com/pokemon/produto/310525/fezandipiti-ex",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -5218,8 +5221,8 @@
   },
   {
     "nome": "Zoroark ex do N",
-    "numeracao": "185/159",
-    "link": "https://mypcards.com/pokemon/produto/267912/zoroark-ex-do-n",
+    "numeracao": "286/217",
+    "link": "https://mypcards.com/pokemon/produto/310523/zoroark-ex-do-n",
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
@@ -5847,5 +5850,1507 @@
     "quantidade": 1,
     "estado": "NM",
     "lingua": "Português"
+  },
+  {
+    "nome": "Ariados",
+    "numeracao": "004/195",
+    "link": "https://mypcards.com/pokemon/produto/174761/ariados",
+    "quantidade": 2,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Centiskorch",
+    "numeracao": "010/073",
+    "link": "https://mypcards.com/pokemon/produto/112088/centiskorch",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Barbaracle",
+    "numeracao": "107/196",
+    "link": "https://mypcards.com/pokemon/produto/167913/barbaracle",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Beautifly",
+    "numeracao": "008/196",
+    "link": "https://mypcards.com/pokemon/produto/167814/beautifly",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Crobat",
+    "numeracao": "105/195",
+    "link": "https://mypcards.com/pokemon/produto/174862/crobat",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Crobat",
+    "numeracao": "091/163",
+    "link": "https://mypcards.com/pokemon/produto/131249/crobat",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Obstagoon de Galar",
+    "numeracao": "119/202",
+    "link": "https://mypcards.com/pokemon/produto/101188/obstagoon-de-galar",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Samurott de Hisui",
+    "numeracao": "100/189",
+    "link": "https://mypcards.com/pokemon/produto/160561/samurott-de-hisui",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Chandelure",
+    "numeracao": "026/196",
+    "link": "https://mypcards.com/pokemon/produto/167832/chandelure",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Wailord",
+    "numeracao": "032/185",
+    "link": "https://mypcards.com/pokemon/produto/114926/wailord",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Inglês",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Thievul",
+    "numeracao": "048/072",
+    "link": "https://mypcards.com/pokemon/produto/129563/thievul",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Inglês",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Basculegion de Hisui",
+    "numeracao": "045/196",
+    "link": "https://mypcards.com/pokemon/produto/167851/basculegion-de-hisui",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Eldegoss",
+    "numeracao": "016/203",
+    "link": "https://mypcards.com/pokemon/produto/141322/eldegoss",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Inglês",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Calyrex",
+    "numeracao": "017/159",
+    "link": "https://mypcards.com/pokemon/produto/180758/calyrex",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Indeedee",
+    "numeracao": "056/072",
+    "link": "https://mypcards.com/pokemon/produto/129571/indeedee",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Inglês",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Bastiodon",
+    "numeracao": "110/189",
+    "link": "https://mypcards.com/pokemon/produto/160571/bastiodon",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Reuniclus",
+    "numeracao": "078/195",
+    "link": "https://mypcards.com/pokemon/produto/174835/reuniclus",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Gallade",
+    "numeracao": "062/189",
+    "link": "https://mypcards.com/pokemon/produto/160523/gallade",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Spectrier",
+    "numeracao": "081/196",
+    "link": "https://mypcards.com/pokemon/produto/167887/spectrier",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Zoroark de Hisui",
+    "numeracao": "076/196",
+    "link": "https://mypcards.com/pokemon/produto/167882/zoroark-de-hisui",
+    "quantidade": 2,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Orbeetle",
+    "numeracao": "065/163",
+    "link": "https://mypcards.com/pokemon/produto/131223/orbeetle",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Kingdra",
+    "numeracao": "037/196",
+    "link": "https://mypcards.com/pokemon/produto/167843/kingdra",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Hatterene",
+    "numeracao": "020/073",
+    "link": "https://mypcards.com/pokemon/produto/112097/hatterene",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Luxray",
+    "numeracao": "048/163",
+    "link": "https://mypcards.com/pokemon/produto/131206/luxray",
+    "quantidade": 1,
+    "estado": "NM",
+    "lingua": "Português",
+    "foil": "Foil",
+    "tags": [
+      "Foil Faixas"
+    ]
+  },
+  {
+    "nome": "Goomy",
+    "numeracao": "094/145",
+    "link": "https://mypcards.com/pokemon/produto/40241/goomy",
+    "quantidade": 16,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Goomy",
+    "numeracao": "094/145",
+    "link": "https://mypcards.com/pokemon/produto/40241/goomy",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Swirlix",
+    "numeracao": "083/195",
+    "link": "https://mypcards.com/pokemon/produto/174840/swirlix",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Swirlix",
+    "numeracao": "083/195",
+    "link": "https://mypcards.com/pokemon/produto/174840/swirlix",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Espurr",
+    "numeracao": "081/195",
+    "link": "https://mypcards.com/pokemon/produto/174838/espurr",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Wailmer",
+    "numeracao": "015/084",
+    "link": "https://mypcards.com/pokemon/produto/361956/wailmer",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Wailmer",
+    "numeracao": "015/084",
+    "link": "https://mypcards.com/pokemon/produto/361956/wailmer",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Castform",
+    "numeracao": "121/198",
+    "link": "https://mypcards.com/pokemon/produto/135624/castform",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Oddish",
+    "numeracao": "006/214",
+    "link": "https://mypcards.com/pokemon/produto/89187/oddish",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Phanpy",
+    "numeracao": "111/214",
+    "link": "https://mypcards.com/pokemon/produto/85266/phanpy",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Marill",
+    "numeracao": "034/147",
+    "link": "https://mypcards.com/pokemon/produto/64231/marill",
+    "quantidade": 8,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Tynamo",
+    "numeracao": "044/147",
+    "link": "https://mypcards.com/pokemon/produto/64241/tynamo",
+    "quantidade": 8,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Litwick",
+    "numeracao": "101/214",
+    "link": "https://mypcards.com/pokemon/produto/85257/litwick",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Litwick",
+    "numeracao": "101/214",
+    "link": "https://mypcards.com/pokemon/produto/85257/litwick",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Gible",
+    "numeracao": "112/236",
+    "link": "https://mypcards.com/pokemon/produto/92825/gible",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Cottonee",
+    "numeracao": "143/236",
+    "link": "https://mypcards.com/pokemon/produto/92856/cottonee",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Pyukumuku",
+    "numeracao": "053/214",
+    "link": "https://mypcards.com/pokemon/produto/89234/pyukumuku",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Blipbug",
+    "numeracao": "018/196",
+    "link": "https://mypcards.com/pokemon/produto/167824/blipbug",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Blipbug",
+    "numeracao": "018/196",
+    "link": "https://mypcards.com/pokemon/produto/167824/blipbug",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Zubat",
+    "numeracao": "089/163",
+    "link": "https://mypcards.com/pokemon/produto/131247/zubat",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Poliwag",
+    "numeracao": "030/149",
+    "link": "https://mypcards.com/pokemon/produto/40005/poliwag",
+    "quantidade": 8,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "lã",
+      "Asako Ita"
+    ]
+  },
+  {
+    "nome": "Baltoy",
+    "numeracao": "093/195",
+    "link": "https://mypcards.com/pokemon/produto/174850/baltoy",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Seedot",
+    "numeracao": "011/196",
+    "link": "https://mypcards.com/pokemon/produto/167817/seedot",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Spinarak",
+    "numeracao": "006/078",
+    "link": "https://mypcards.com/pokemon/produto/163927/spinarak",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Machop",
+    "numeracao": "086/196",
+    "link": "https://mypcards.com/pokemon/produto/167892/machop",
+    "quantidade": 7,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Salandit",
+    "numeracao": "027/163",
+    "link": "https://mypcards.com/pokemon/produto/131185/salandit",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Ducklett",
+    "numeracao": "046/196",
+    "link": "https://mypcards.com/pokemon/produto/167852/ducklett",
+    "quantidade": 9,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Venonat",
+    "numeracao": "10/214",
+    "link": "https://mypcards.com/pokemon/produto/89191/venonat",
+    "quantidade": 5,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Venonat",
+    "numeracao": "10/214",
+    "link": "https://mypcards.com/pokemon/produto/89191/venonat",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Venonat",
+    "numeracao": "10/214",
+    "link": "https://mypcards.com/pokemon/produto/89191/venonat",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Gothita",
+    "numeracao": "52/145",
+    "link": "https://mypcards.com/pokemon/produto/40199/gothita",
+    "quantidade": 10,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Gothita",
+    "numeracao": "52/145",
+    "link": "https://mypcards.com/pokemon/produto/40199/gothita",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Espanhol",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Litwick",
+    "numeracao": "024/196",
+    "link": "https://mypcards.com/pokemon/produto/167830/litwick",
+    "quantidade": 9,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Metapod",
+    "numeracao": "2/149",
+    "link": "https://mypcards.com/pokemon/produto/39977/metapod",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Grubbin",
+    "numeracao": "18/214",
+    "link": "https://mypcards.com/pokemon/produto/89199/grubbin",
+    "quantidade": 8,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sandile",
+    "numeracao": "113/214",
+    "link": "https://mypcards.com/pokemon/produto/89294/sandile",
+    "quantidade": 10,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sandile",
+    "numeracao": "113/214",
+    "link": "https://mypcards.com/pokemon/produto/89294/sandile",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sandile",
+    "numeracao": "113/214",
+    "link": "https://mypcards.com/pokemon/produto/89294/sandile",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Joltik",
+    "numeracao": "47/181",
+    "link": "https://mypcards.com/pokemon/produto/87770/joltik",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Joltik",
+    "numeracao": "47/181",
+    "link": "https://mypcards.com/pokemon/produto/87770/joltik",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Joltik",
+    "numeracao": "47/181",
+    "link": "https://mypcards.com/pokemon/produto/87770/joltik",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Trubbish",
+    "numeracao": "50/145",
+    "link": "https://mypcards.com/pokemon/produto/40197/trubbish",
+    "quantidade": 13,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Trubbish",
+    "numeracao": "50/145",
+    "link": "https://mypcards.com/pokemon/produto/40197/trubbish",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Trubbish",
+    "numeracao": "50/145",
+    "link": "https://mypcards.com/pokemon/produto/40197/trubbish",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Espanhol",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Murkrow",
+    "numeracao": "114/196",
+    "link": "https://mypcards.com/pokemon/produto/167920/murkrow",
+    "quantidade": 7,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Murkrow",
+    "numeracao": "114/196",
+    "link": "https://mypcards.com/pokemon/produto/167920/murkrow",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Staryu",
+    "numeracao": "030/172",
+    "link": "https://mypcards.com/pokemon/produto/154858/staryu",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Staryu",
+    "numeracao": "030/172",
+    "link": "https://mypcards.com/pokemon/produto/154858/staryu",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Staryu",
+    "numeracao": "030/172",
+    "link": "https://mypcards.com/pokemon/produto/154858/staryu",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Darumaka",
+    "numeracao": "23/214",
+    "link": "https://mypcards.com/pokemon/produto/89204/darumaka",
+    "quantidade": 7,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Darumaka",
+    "numeracao": "23/214",
+    "link": "https://mypcards.com/pokemon/produto/89204/darumaka",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Darumaka",
+    "numeracao": "23/214",
+    "link": "https://mypcards.com/pokemon/produto/89204/darumaka",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Dunsparce",
+    "numeracao": "68/108",
+    "link": "https://mypcards.com/pokemon/produto/39414/dunsparce",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Nuzleaf",
+    "numeracao": "72/122",
+    "link": "https://mypcards.com/pokemon/produto/33364/nuzleaf",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Foongus",
+    "numeracao": "12/114",
+    "link": "https://mypcards.com/pokemon/produto/40466/foongus",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Cacnea",
+    "numeracao": "4/162",
+    "link": "https://mypcards.com/pokemon/produto/33419/cacnea",
+    "quantidade": 3,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Cacnea",
+    "numeracao": "4/162",
+    "link": "https://mypcards.com/pokemon/produto/33419/cacnea",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Pachirisu",
+    "numeracao": "80/214",
+    "link": "https://mypcards.com/pokemon/produto/85235/pachirisu",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Beldum",
+    "numeracao": "47/98",
+    "link": "https://mypcards.com/pokemon/produto/32686/beldum",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Carbink",
+    "numeracao": "49/124",
+    "link": "https://mypcards.com/pokemon/produto/35538/carbink",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Carbink",
+    "numeracao": "49/124",
+    "link": "https://mypcards.com/pokemon/produto/35538/carbink",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Mankey",
+    "numeracao": "042/084",
+    "link": "https://mypcards.com/pokemon/produto/361983/mankey",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Skitty",
+    "numeracao": "1/30",
+    "link": "https://mypcards.com/pokemon/produto/106587/skitty",
+    "quantidade": 4,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Skitty",
+    "numeracao": "1/30",
+    "link": "https://mypcards.com/pokemon/produto/106587/skitty",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sizzlipede",
+    "numeracao": "029/163",
+    "link": "https://mypcards.com/pokemon/produto/131187/sizzlipede",
+    "quantidade": 2,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sizzlipede",
+    "numeracao": "029/163",
+    "link": "https://mypcards.com/pokemon/produto/131187/sizzlipede",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Taillow",
+    "numeracao": "133/185",
+    "link": "https://mypcards.com/pokemon/produto/115027/taillow",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Shieldon",
+    "numeracao": "109/189",
+    "link": "https://mypcards.com/pokemon/produto/160570/shieldon",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Starmie",
+    "numeracao": "16/111",
+    "link": "https://mypcards.com/pokemon/produto/74263/starmie",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Woobat",
+    "numeracao": "068/203",
+    "link": "https://mypcards.com/pokemon/produto/141374/woobat",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Smoliv",
+    "numeracao": "021/182",
+    "link": "https://mypcards.com/pokemon/produto/275609/smoliv",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Snom",
+    "numeracao": "084/264",
+    "link": "https://mypcards.com/pokemon/produto/146316/snom",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Wormadam",
+    "numeracao": "010/172",
+    "link": "https://mypcards.com/pokemon/produto/154838/wormadam",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Binacle",
+    "numeracao": "66/131",
+    "link": "https://mypcards.com/pokemon/produto/79726/binacle",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Primeape",
+    "numeracao": "51/111",
+    "link": "https://mypcards.com/pokemon/produto/74298/primeape",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Drilbur",
+    "numeracao": "091/185",
+    "link": "https://mypcards.com/pokemon/produto/114985/drilbur",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Castform Sunny Form",
+    "numeracao": "022/198",
+    "link": "https://mypcards.com/pokemon/produto/135525/castform-forma-ensolarada",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Alolan Geodude",
+    "numeracao": "35/181",
+    "link": "https://mypcards.com/pokemon/produto/87760/geodude-de-alola",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Snubbull",
+    "numeracao": "98/162",
+    "link": "https://mypcards.com/pokemon/produto/33513/snubbull",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Rowlet",
+    "numeracao": "17/236",
+    "link": "https://mypcards.com/pokemon/produto/95811/rowlet",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Relicanth",
+    "numeracao": "111/236",
+    "link": "https://mypcards.com/pokemon/produto/92824/relicanth",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Hippopotas",
+    "numeracao": "87/160",
+    "link": "https://mypcards.com/pokemon/produto/39153/hippopotas",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Pancham",
+    "numeracao": "81/181",
+    "link": "https://mypcards.com/pokemon/produto/87661/pancham",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Fomantis",
+    "numeracao": "15/236",
+    "link": "https://mypcards.com/pokemon/produto/92728/fomantis",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Shelgon",
+    "numeracao": "43/70",
+    "link": "https://mypcards.com/pokemon/produto/83929/shelgon",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Ralts",
+    "numeracao": "139/214",
+    "link": "https://mypcards.com/pokemon/produto/85295/ralts",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Clefairy",
+    "numeracao": "081/197",
+    "link": "https://mypcards.com/pokemon/produto/199320/clefairy",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Starly",
+    "numeracao": "148/198",
+    "link": "https://mypcards.com/pokemon/produto/184952/starly",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Meltan",
+    "numeracao": "102/142",
+    "link": "https://mypcards.com/pokemon/produto/247593/meltan",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Chewtle",
+    "numeracao": "043/142",
+    "link": "https://mypcards.com/pokemon/produto/247534/chewtle",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Reverse Foil",
+    "tags": [
+      "Reverse Foil",
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Gulpin",
+    "numeracao": "57/168",
+    "link": "https://mypcards.com/pokemon/produto/82474/gulpin",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Inglês",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
+  },
+  {
+    "nome": "Sunkern",
+    "numeracao": "85/123",
+    "link": "https://mypcards.com/pokemon/produto/36598/sunkern",
+    "quantidade": 1,
+    "estado": "?",
+    "lingua": "Português",
+    "foil": "Não",
+    "tags": [
+      "massinha",
+      "Yuko Marii"
+    ]
   }
 ]

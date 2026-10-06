@@ -23,15 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent
 PASTA_IMAGENS = BASE_DIR / "imagens"
 PASTA_BACKUPS = BASE_DIR / "backups"
 ARQUIVO_CARTAS = BASE_DIR / "cartas.json"
-ARQUIVO_LEON = BASE_DIR / "leon.json"
 PARCIAL_CARTAS = BASE_DIR / "cartas.parcial.json"
-PARCIAL_LEON = BASE_DIR / "leon.parcial.json"
 
 EXTENSOES_IMAGEM = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
 
 # Intervalo MÍNIMO entre QUALQUER request para a MYP.
 # Se quiser ser ainda mais conservador, aumente para 2.5 ou 3.0.
-INTERVALO_MINIMO_REQUESTS = 1.8
+INTERVALO_MINIMO_REQUESTS = 1.75
 
 # A MYP pagina as ofertas de cartas com muitos anúncios.
 # True = tenta seguir as páginas extras para melhorar as estatísticas.
@@ -248,6 +246,42 @@ def caminho_relativo(caminho: Path) -> str:
         return str(caminho.resolve().relative_to(BASE_DIR.resolve()))
     except Exception:
         return str(caminho.resolve())
+
+
+def tags_extras_registro(registro: dict) -> list[str]:
+    """Normaliza tags extras vindas do JSON-fonte; na ausência, retorna lista vazia."""
+    valor = registro.get("tags_extras")
+    if valor is None:
+        valor = registro.get("tags_extra")
+    if valor is None:
+        valor = registro.get("tags")
+
+    if valor is None:
+        return []
+    if isinstance(valor, (list, tuple, set)):
+        saida = []
+        vistos = set()
+        for tag in valor:
+            t = texto_normalizado(tag)
+            if t and chave_texto(t) not in vistos:
+                vistos.add(chave_texto(t))
+                saida.append(t)
+        return saida
+
+    t = texto_normalizado(valor)
+    return [t] if t else []
+
+
+def combinar_tags_extras(registros: list[dict]) -> list[str]:
+    saida = []
+    vistos = set()
+    for registro in registros:
+        for tag in tags_extras_registro(registro):
+            k = chave_texto(tag)
+            if k not in vistos:
+                vistos.add(k)
+                saida.append(tag)
+    return saida
 
 
 # ============================================================
@@ -497,6 +531,27 @@ def elemento_parece_anuncio(el) -> bool:
     )
 
 
+def extrair_quantidade_unidades(texto: str) -> int:
+    m = re.search(r"\b(\d[\d.]*)\s*un\.", str(texto), re.I)
+    if not m:
+        return 1
+    try:
+        return max(1, int(m.group(1).replace(".", "")))
+    except Exception:
+        return 1
+
+
+def anuncio_certificado(el) -> bool | None:
+    """True = Lojistas e Certificados; False = Demais vendedores."""
+    for titulo in el.find_all_previous(["h1", "h2", "h3", "h4"]):
+        k = chave_texto(titulo.get_text(" ", strip=True))
+        if "demais vendedores" in k:
+            return False
+        if "lojistas e certificados" in k:
+            return True
+    return None
+
+
 def extrair_anuncios(soup: BeautifulSoup) -> list[dict]:
     inicio = achar_titulo(soup, "Lojistas e Certificados")
     if not inicio:
@@ -543,6 +598,8 @@ def extrair_anuncios(soup: BeautifulSoup) -> list[dict]:
         variante = extrair_variante_anuncio(el, texto)
         idioma = extrair_idioma_elemento(el)
         jumbo = detectar_jumbo(variante, texto)
+        quantidade_unidades = extrair_quantidade_unidades(texto)
+        certificado = anuncio_certificado(el)
 
         # Primeiro texto/célula costuma ser o vendedor; serve para deduplicação.
         celulas = [texto_normalizado(x.get_text(" ", strip=True)) for x in el.find_all(["td", "th"])]
@@ -555,6 +612,8 @@ def extrair_anuncios(soup: BeautifulSoup) -> list[dict]:
             "foil": normalizar_foil(variante),
             "jumbo": jumbo,
             "variante": texto_normalizado(variante) if variante else None,
+            "quantidade_unidades": quantidade_unidades,
+            "certificado": certificado,
             "_vendedor": vendedor,
         }
 
@@ -565,6 +624,8 @@ def extrair_anuncios(soup: BeautifulSoup) -> list[dict]:
             anuncio["idioma"],
             anuncio["foil"],
             anuncio["jumbo"],
+            anuncio["quantidade_unidades"],
+            anuncio["certificado"],
             chave_texto(texto),
         )
         if chave in vistos:
@@ -903,6 +964,31 @@ def resumo_anuncios(anuncios: list[dict]) -> dict | None:
     return stats
 
 
+def segundo_menor_preco(anuncios: list[dict]) -> float | None:
+    valores = sorted(float(a["preco"]) for a in anuncios if a.get("preco") is not None)
+    if len(valores) < 2:
+        return None
+    return round(valores[1], 2)
+
+
+def multiplicadores_certificado_por_estado(anuncios: list[dict]) -> dict[str, float | None]:
+    """
+    Compara menor certificado / menor não certificado por estado.
+    O idioma é deliberadamente ignorado neste cálculo.
+    """
+    saida = {}
+    for estado in ("M", "NM", "SP", "MP", "HP", "DM"):
+        do_estado = [a for a in anuncios if normalizar_estado(a.get("estado")) == estado]
+        certificados = [float(a["preco"]) for a in do_estado if a.get("certificado") is True and a.get("preco") is not None]
+        nao_certificados = [float(a["preco"]) for a in do_estado if a.get("certificado") is False and a.get("preco") is not None]
+
+        if certificados and nao_certificados and min(nao_certificados) > 0:
+            saida[estado] = round(min(certificados) / min(nao_certificados), 4)
+        else:
+            saida[estado] = None
+    return saida
+
+
 def anuncios_base(anuncios: list[dict], permite_foil: bool) -> list[dict]:
     """Preço principal = carta padrão, não jumbo, preferindo BR."""
     base = [a for a in anuncios if not a.get("jumbo")]
@@ -920,7 +1006,12 @@ def anuncios_base(anuncios: list[dict], permite_foil: bool) -> list[dict]:
     return base
 
 
-def precos_por_estado(anuncios: list[dict]) -> dict:
+def precos_por_estado(
+    anuncios: list[dict],
+    *,
+    incluir_segundo_menor: bool = False,
+    multiplicadores_certificado: dict[str, float | None] | None = None,
+) -> dict:
     grupos = defaultdict(list)
     for a in anuncios:
         estado = normalizar_estado(a.get("estado"))
@@ -935,6 +1026,10 @@ def precos_por_estado(anuncios: list[dict]) -> dict:
             continue
         stats = resumo_anuncios(grupo)
         if stats:
+            if incluir_segundo_menor:
+                stats["segundo_menor"] = segundo_menor_preco(grupo)
+            if multiplicadores_certificado is not None:
+                stats["multiplicador_certificado"] = multiplicadores_certificado.get(estado)
             saida[estado] = stats
     return saida
 
@@ -951,8 +1046,9 @@ def _grupo_com_estados(anuncios: list[dict]) -> dict | None:
 
 def precos_por_idioma(anuncios: list[dict]) -> dict:
     """
-    Sem multiplicador: grava os preços REAIS em três grupos.
-    Grupo ausente na MYP simplesmente não entra no JSON.
+    Grava os preços reais em BR, Estrangeiro e Oriental.
+    Cada idioma recebe segundo menor e estados; o multiplicador de certificado
+    de cada estado é calculado globalmente, sem filtrar idioma.
     """
     grupos = defaultdict(list)
     for a in anuncios:
@@ -960,13 +1056,27 @@ def precos_por_idioma(anuncios: list[dict]) -> dict:
         if g:
             grupos[g].append(a)
 
+    multiplicadores = multiplicadores_certificado_por_estado(anuncios)
     saida = {}
     for g in ("BR", "Estrangeiro", "Oriental"):
-        if not grupos.get(g):
+        grupo = grupos.get(g, [])
+        if not grupo:
             continue
-        stats = _grupo_com_estados(grupos[g])
-        if stats:
-            saida[g] = stats
+
+        stats = resumo_anuncios(grupo)
+        if not stats:
+            continue
+        stats["segundo_menor"] = segundo_menor_preco(grupo)
+
+        por_estado = precos_por_estado(
+            grupo,
+            incluir_segundo_menor=True,
+            multiplicadores_certificado=multiplicadores,
+        )
+        if por_estado:
+            stats["por_estado"] = por_estado
+
+        saida[g] = stats
     return saida
 
 
@@ -1129,7 +1239,6 @@ def coletar_carta_myp(
 
     base = anuncios_base(todos_anuncios, permite_foil)
     geral = resumo_anuncios(base)
-    por_estado = precos_por_estado(base)
 
     idiomas = precos_por_idioma(todos_anuncios)
     foils = precos_por_foil(todos_anuncios, permite_foil)
@@ -1158,9 +1267,11 @@ def coletar_carta_myp(
         "media": geral.get("media") if geral else None,
         "mediana": geral.get("mediana") if geral else None,
         "maior_preco": geral.get("maior") if geral else None,
-        "precos_por_estado": por_estado,
         "preco_tcgplayer": extrair_preco_tcgplayer(primeira),
         "numero_anuncios_myp": numero_ofertas,
+        "numero_unidades_myp": sum(int(a.get("quantidade_unidades", 1) or 1) for a in todos_anuncios),
+        "data_hora_coleta": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "tags_extras": tags_extras_registro(fonte),
         "caminho_foto": imagem,
         "link_myp": url_final,
     }
@@ -1196,6 +1307,8 @@ def criar_registro_leon(
         "mediana_preco": precos.get("mediana") if precos else None,
         "maior_preco": precos.get("maior") if precos else None,
         "quantidade": fonte.get("quantidade", 1),
+        "tags_extras": tags_extras_registro(fonte),
+        "data_hora_coleta": catalogo.get("data_hora_coleta"),
     }
 
 
@@ -1272,6 +1385,9 @@ def coletar_todas(caminho_fonte: Path) -> None:
     por_link, por_nome_numero = indexar_catalogo_existente(catalogo_antigo)
     proximo = proximo_id(catalogo_antigo)
 
+    arquivo_dono = caminho_fonte.with_name(f"{caminho_fonte.stem} Formatado.json")
+    parcial_dono = caminho_fonte.with_name(f"{caminho_fonte.stem} Formatado.parcial.json")
+
     # Agrupa pelo link para não consultar duas vezes a mesma carta.
     grupos = defaultdict(list)
     sem_link = []
@@ -1287,12 +1403,14 @@ def coletar_todas(caminho_fonte: Path) -> None:
     total = len(grupos)
     sessao = requests.Session()
 
-    catalogo_final = []
-    leon_final = []
+    # Mantém tudo que já existia em cartas.json e atualiza apenas as cartas
+    # presentes nesta fonte. Cartas novas são adicionadas ao final.
+    catalogo_final = [dict(c) for c in catalogo_antigo]
+    indice_por_id = {c.get("id"): i for i, c in enumerate(catalogo_final) if c.get("id")}
+    dono_final = []
     erros = []
 
-    usados_ids = set()
-    print(f"\nCOLETAR | {total} cartas únicas | {len(fonte)} registros do dono")
+    print(f"\nCOLETAR | {caminho_fonte.name} | {total} cartas únicas | {len(fonte)} registros do dono")
     print("preços: menor | média | mediana | maior\n")
 
     for i, (_, registros) in enumerate(grupos.items(), start=1):
@@ -1327,19 +1445,26 @@ def coletar_todas(caminho_fonte: Path) -> None:
                 print(f"[{i}/{total}] {nome} {num} | PULADA")
                 continue
 
-        if carta.get("id") not in usados_ids:
+        # Tags extras pertencentes à mesma carta são unidas sem duplicar.
+        # Se a carta já existia no catálogo, preserva também as tags antigas.
+        base_tags = [existente] if existente else []
+        carta["tags_extras"] = combinar_tags_extras(base_tags + registros)
+
+        if card_id in indice_por_id:
+            catalogo_final[indice_por_id[card_id]] = carta
+        else:
+            indice_por_id[card_id] = len(catalogo_final)
             catalogo_final.append(carta)
-            usados_ids.add(carta.get("id"))
 
-        registros_leon = []
+        registros_dono = []
         for reg in registros:
-            r_leon = criar_registro_leon(carta, reg, anuncios, permite_foil)
-            leon_final.append(r_leon)
-            registros_leon.append(r_leon)
+            r_dono = criar_registro_leon(carta, reg, anuncios, permite_foil)
+            dono_final.append(r_dono)
+            registros_dono.append(r_dono)
 
-        if registros_leon:
-            print(f"[{i}/{total}] {status}{nome} {num} | {texto_preco_dono(registros_leon[0])}")
-            for extra in registros_leon[1:]:
+        if registros_dono:
+            print(f"[{i}/{total}] {status}{nome} {num} | {texto_preco_dono(registros_dono[0])}")
+            for extra in registros_dono[1:]:
                 print(f"           {texto_preco_dono(extra)}")
         else:
             print(f"[{i}/{total}] {status}{nome} {num}")
@@ -1347,7 +1472,7 @@ def coletar_todas(caminho_fonte: Path) -> None:
         # Progresso separado dos arquivos finais: uma interrupção não destrói
         # uma coleta anterior completa.
         salvar_json(PARCIAL_CARTAS, catalogo_final)
-        salvar_json(PARCIAL_LEON, leon_final)
+        salvar_json(parcial_dono, dono_final)
 
     for reg in sem_link:
         erros.append({
@@ -1357,193 +1482,60 @@ def coletar_todas(caminho_fonte: Path) -> None:
             "erro": "sem link MYP",
         })
 
-    # Só substitui os JSONs oficiais ao concluir o percurso.
     salvar_json(ARQUIVO_CARTAS, catalogo_final)
-    salvar_json(ARQUIVO_LEON, leon_final)
+    salvar_json(arquivo_dono, dono_final)
 
-    for parcial in (PARCIAL_CARTAS, PARCIAL_LEON):
+    for parcial in (PARCIAL_CARTAS, parcial_dono):
         if parcial.exists():
             parcial.unlink()
 
     if erros:
         salvar_json(BASE_DIR / "erros_coleta.json", erros)
 
-    print(f"\nOK | cartas.json: {len(catalogo_final)} | leon.json: {len(leon_final)} | puladas: {len(erros)}")
-
-
-# ============================================================
-# CORTAR
-# ============================================================
-
-def resolver_caminho_foto(valor: str | None) -> Path | None:
-    if not valor:
-        return None
-    p = Path(str(valor))
-    return p if p.is_absolute() else BASE_DIR / p
-
-
-def tem_imagem(carta: dict) -> bool:
-    p = resolver_caminho_foto(carta.get("caminho_foto"))
-    if p and p.is_file():
-        return True
-
-    card_id = carta.get("id")
-    if not card_id or not PASTA_IMAGENS.exists():
-        return False
-
-    return any(
-        caminho_imagem_por_id(card_id, ext).is_file()
-        for ext in EXTENSOES_IMAGEM
-    )
-
-
-def cortar_sem_imagem(caminho_fonte: Path | None = None) -> None:
-    if not ARQUIVO_CARTAS.exists() or not ARQUIVO_LEON.exists():
-        print("\nFaltam cartas.json/leon.json. Rode COLETAR primeiro.")
-        return
-
-    cartas = carregar_lista_json(ARQUIVO_CARTAS)
-    leon = carregar_lista_json(ARQUIVO_LEON)
-
-    mantidas = [c for c in cartas if tem_imagem(c)]
-    removidas = [c for c in cartas if not tem_imagem(c)]
-
-    if not removidas:
-        print("\nCORTAR | nada para remover")
-        return
-
-    ids_removidos = {c.get("id") for c in removidas}
-    links_removidos = {
-        texto_normalizado(c.get("link_myp"))
-        for c in removidas
-        if c.get("link_myp")
-    }
-    pids_removidos = {
-        id_produto_myp(link) for link in links_removidos if id_produto_myp(link)
-    }
-
-    leon_mantido = [x for x in leon if x.get("id") not in ids_removidos]
-
-    criar_backup(ARQUIVO_CARTAS)
-    criar_backup(ARQUIVO_LEON)
-    salvar_json(ARQUIVO_CARTAS, mantidas)
-    salvar_json(ARQUIVO_LEON, leon_mantido)
-
-    # Também corta o JSON-fonte legado. Assim a próxima coleta não traz a
-    # carta apagada de volta. O link é usado só para identificar a fonte;
-    # o ID do catálogo continua independente da MYP.
-    fonte_removidas = 0
-    if caminho_fonte and caminho_fonte.exists():
-        try:
-            fonte = carregar_lista_json(caminho_fonte)
-            nova_fonte = []
-            for reg in fonte:
-                link = texto_normalizado(reg.get("link", ""))
-                pid = id_produto_myp(link)
-                remover = link in links_removidos or (pid and pid in pids_removidos)
-                if remover:
-                    fonte_removidas += 1
-                else:
-                    nova_fonte.append(reg)
-
-            if fonte_removidas:
-                criar_backup(caminho_fonte)
-                salvar_json(caminho_fonte, nova_fonte)
-        except Exception:
-            pass
-
-    salvar_json(BASE_DIR / "removidas_sem_imagem.json", removidas)
-
     print(
-        f"\nCORTAR | cartas: -{len(removidas)} | leon: -{len(leon) - len(leon_mantido)}"
-        + (f" | fonte: -{fonte_removidas}" if caminho_fonte else "")
+        f"\nOK | cartas.json: {len(catalogo_final)} | "
+        f"{arquivo_dono.name}: {len(dono_final)} | puladas: {len(erros)}"
     )
 
 
 # ============================================================
-# ENTRADA / MENU
+# ENTRADA AUTOMÁTICA
 # ============================================================
 
-def localizar_json_fonte(argumento: str | None = None) -> Path:
-    if argumento:
-        p = Path(argumento.strip().strip('"')).expanduser()
-        if not p.is_absolute():
-            p = (Path.cwd() / p).resolve()
-        if not p.exists():
-            raise FileNotFoundError(f"JSON não encontrado: {p}")
-        return p
-
-    ignorar = {
+def localizar_jsons_fonte() -> list[Path]:
+    """Pega automaticamente os JSONs-fonte que estiverem ao lado do script."""
+    ignorar_exatos = {
         ARQUIVO_CARTAS.name,
-        ARQUIVO_LEON.name,
         PARCIAL_CARTAS.name,
-        PARCIAL_LEON.name,
         "erros_coleta.json",
         "removidas_sem_imagem.json",
     }
-    arquivos = [
-        p for p in BASE_DIR.glob("*.json")
-        if p.name not in ignorar and not p.name.startswith("removidas_")
-    ]
 
-    if len(arquivos) == 1:
-        return arquivos[0]
-
-    if len(arquivos) > 1:
-        print("\nJSON fonte:")
-        for i, p in enumerate(sorted(arquivos), 1):
-            print(f"{i} - {p.name}")
-        while True:
-            x = input("> ").strip()
-            if x.isdigit() and 1 <= int(x) <= len(arquivos):
-                return sorted(arquivos)[int(x) - 1]
-
-    entrada = input("JSON fonte: ").strip().strip('"')
-    p = Path(entrada).expanduser()
-    if not p.is_absolute():
-        p = (Path.cwd() / p).resolve()
-    if not p.exists():
-        raise FileNotFoundError(f"JSON não encontrado: {p}")
-    return p
-
-
-def menu() -> str:
-    print("\n1 - COLETAR")
-    print("2 - CORTAR")
-    print("0 - SAIR")
-    while True:
-        x = input("> ").strip().lower()
-        if x in {"1", "coletar", "c"}:
-            return "coletar"
-        if x in {"2", "cortar", "corta"}:
-            return "cortar"
-        if x in {"0", "sair", "exit"}:
-            return "sair"
+    arquivos = []
+    for p in sorted(BASE_DIR.glob("*.json")):
+        if p.name in ignorar_exatos:
+            continue
+        nome_k = chave_texto(p.name)
+        if nome_k.endswith(" formatado.json"):
+            continue
+        if nome_k.endswith(" formatado.parcial.json"):
+            continue
+        if p.name.startswith("removidas_"):
+            continue
+        arquivos.append(p)
+    return arquivos
 
 
 def main():
-    acao = None
-    argumento = None
-
-    if len(sys.argv) >= 2:
-        x = sys.argv[1].strip().lower()
-        if x in {"coletar", "cortar", "corta"}:
-            acao = "cortar" if x in {"cortar", "corta"} else "coletar"
-            if len(sys.argv) >= 3:
-                argumento = sys.argv[2]
-
-    if acao is None:
-        acao = menu()
-
-    if acao == "sair":
-        return
-
     try:
-        caminho_fonte = localizar_json_fonte(argumento)
-        if acao == "coletar":
+        fontes = localizar_jsons_fonte()
+        if not fontes:
+            print("\nNenhum JSON-fonte encontrado na mesma pasta do coletor.")
+            return
+
+        for caminho_fonte in fontes:
             coletar_todas(caminho_fonte)
-        else:
-            cortar_sem_imagem(caminho_fonte)
+
     except KeyboardInterrupt:
         print("\nInterrompido. Os arquivos .parcial preservam o progresso desta execução.")
     except Exception as e:
