@@ -1,0 +1,107 @@
+{
+  "cartas": [
+    {
+      "arquivo": "0001_Scrafty_74-99_Ingles.jpg",
+      "nome": "Scrafty",
+      "numero": "74/99",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0002_Zorua_90-162_Ingles.jpg",
+      "nome": "Zorua",
+      "numero": "90/162",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0003_Roggenrola_48-119_Ingles.jpg",
+      "nome": "Roggenrola",
+      "numero": "48/119",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0004_Durant_9-122_Ingles.jpg",
+      "nome": "Durant",
+      "numero": "9/122",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0005_Litwick_48-114_Ingles.jpg",
+      "nome": "Litwick",
+      "numero": "48/114",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0006_Abomasnow_40-162_Ingles.jpg",
+      "nome": "Abomasnow",
+      "numero": "40/162",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0007_Scatterbug_13-162_Ingles.jpg",
+      "nome": "Scatterbug",
+      "numero": "13/162",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0008_Amaura_25-111_Ingles.jpg",
+      "nome": "Amaura",
+      "numero": "25/111",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0009_Vibrava_109-160_Ingles.jpg",
+      "nome": "Vibrava",
+      "numero": "109/160",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0010_Gastrodon_29-114_Ingles.jpg",
+      "nome": "Gastrodon",
+      "numero": "29/114",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0011_Spoink_30-124_Ingles.jpg",
+      "nome": "Spoink",
+      "numero": "30/124",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0012_Pangoro_75-122_Ingles.jpg",
+      "nome": "Pangoro",
+      "numero": "75/122",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0013_Cinccino_89-124_Ingles.jpg",
+      "nome": "Cinccino",
+      "numero": "89/124",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0014_Remoraid_32-162_Ingles.jpg",
+      "nome": "Remoraid",
+      "numero": "32/162",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0015_Accelgor_9-111_Ingles.jpg",
+      "nome": "Accelgor",
+      "numero": "9/111",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0016_Electrike_24-108_Ingles.jpg",
+      "nome": "Electrike",
+      "numero": "24/108",
+      "idioma": "Inglês"
+    },
+    {
+      "arquivo": "0017_SUSPEITA_DESCONHECIDA_DESCONHECIDO_Outro.jpg",
+      "nome": "DESCONHECIDA",
+      "numero": "DESCONHECIDO",
+      "idioma": "Outro",
+      "suspeita": true
+    }
+  ]
+}
