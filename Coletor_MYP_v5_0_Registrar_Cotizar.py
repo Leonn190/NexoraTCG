@@ -1,15 +1,34 @@
+# Coletor MYP v5.0 — Registrar / Cotizar
+#
+# Uso: python Coletor_MYP_v5_0_Registrar_Cotizar.py
+#   1 = Registrar JSON pessoal (ex.: Leon.json) em LeonFormatado.json + cartas.json.
+#   2 = Cotizar apenas JSONs Formatado (ex.: LeonFormatado.json).
+#
+# Alternativa sem menu:
+#   python Coletor_MYP_v5_0_Registrar_Cotizar.py --modo registrar --arquivo Leon.json
+#   python Coletor_MYP_v5_0_Registrar_Cotizar.py --modo cotizar --arquivo LeonFormatado.json --dias 1
+#
+# Na importação incremental, as quantidades no JSON original são totais por
+# combinação estado/idioma/foil/tags; repetir a importação é idempotente.
+# O Registrar não apaga cartas ausentes da fonte. Remoções são manuais.
+# Em ambas as operações, os arquivos são atualizados a cada carta concluída.
+# A coleta de ilustrador fica apenas no cadastro geral (cartas.json).
+
 import json
+import os
 import re
 import shutil
 import statistics
 import sys
 import time
+import tempfile
 import unicodedata
 from collections import defaultdict, deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
+import argparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -98,6 +117,7 @@ IDIOMAS = {
 
 # Controle global do rate limit.
 _ULTIMO_REQUEST = 0.0
+_BLOQUEIO_429_ATE = 0.0
 
 
 # ============================================================
@@ -159,10 +179,22 @@ def resumo_precos(precos: list[float]) -> dict | None:
 
 
 def salvar_json(caminho: Path, dados) -> None:
-    caminho.write_text(
-        json.dumps(dados, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    """Escrita atômica: não deixa JSON truncado em interrupções."""
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    temporario = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=caminho.parent,
+            prefix=f".{caminho.stem}.", suffix=".tmp", delete=False,
+        ) as f:
+            temporario = Path(f.name)
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+        os.replace(temporario, caminho)
+    finally:
+        if temporario is not None and temporario.exists():
+            temporario.unlink()
 
 
 def carregar_lista_json(caminho: Path) -> list[dict]:
@@ -175,19 +207,63 @@ def carregar_lista_json(caminho: Path) -> list[dict]:
 
 
 def carregar_json_se_existir(caminho: Path) -> list[dict]:
+    # Erros nunca são escondidos: substituir um catálogo corrompido por []
+    # apagaria cartas já registradas.
     if not caminho.exists():
         return []
-    try:
-        return carregar_lista_json(caminho)
-    except Exception:
-        return []
+    return carregar_lista_json(caminho)
+
+
+def expandir_registros_fonte(fonte: list[dict]) -> list[dict]:
+    """Converte o JSON agrupado em exemplares lógicos para a coleta existente.
+
+    As propriedades da variante substituem as da carta (inclusive tags=[]).
+    Esta expansão é somente em memória; os arquivos finais permanecem agrupados.
+    Também aceita o JSON antigo, com um registro por combinação de atributos.
+    """
+    registros = []
+    for pos, carta in enumerate(fonte, start=1):
+        variantes = carta.get("variantes")
+        if variantes is None:
+            registros.append(dict(carta))
+            continue
+        if not isinstance(variantes, list) or not variantes:
+            raise ValueError(f"Carta {pos} ({carta.get('nome')}): variantes deve ser lista não vazia.")
+
+        comum = {k: v for k, v in carta.items() if k != "variantes"}
+        total = 0
+        for indice, variante in enumerate(variantes, start=1):
+            if not isinstance(variante, dict):
+                raise ValueError(f"Carta {pos}, variante {indice}: formato inválido.")
+            atual = dict(comum)
+            # O formato agrupado pode misturar nomes legados de tags.
+            # Uma definição na variante sempre substitui todas as do pai.
+            nomes_tags = ("tags", "tags_extras", "tags_extra")
+            if any(k in variante for k in nomes_tags):
+                for campo_tag in nomes_tags:
+                    atual.pop(campo_tag, None)
+            atual.update(variante)
+            qtd = atual.get("quantidade", 1)
+            if isinstance(qtd, bool) or not isinstance(qtd, int) or qtd < 1:
+                raise ValueError(f"Carta {pos}, variante {indice}: quantidade inválida: {qtd!r}")
+            total += qtd
+            # Se não houver tags na variante, herda do registro principal.
+            # Se houver [], representa explicitamente a ausência de tags.
+            registros.append(atual)
+
+        if total != carta.get("quantidade"):
+            raise ValueError(
+                f"Carta {pos} ({carta.get('nome')}): quantidade geral "
+                f"{carta.get('quantidade')} != soma das variantes {total}."
+            )
+    return registros
 
 
 def criar_backup(caminho: Path) -> Path | None:
     if not caminho.exists():
         return None
     PASTA_BACKUPS.mkdir(parents=True, exist_ok=True)
-    carimbo = datetime.now().strftime("%Y%m%d_%H%M%S")
+    carimbo = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     destino = PASTA_BACKUPS / f"{caminho.stem}.backup_{carimbo}{caminho.suffix}"
     shutil.copy2(caminho, destino)
     return destino
@@ -319,8 +395,11 @@ def get_com_retry(
     *,
     timeout: int = 30,
 ) -> requests.Response:
-    global _ULTIMO_REQUEST
+    global _ULTIMO_REQUEST, _BLOQUEIO_429_ATE
     ultimo_erro = None
+
+    if time.monotonic() < _BLOQUEIO_429_ATE:
+        raise RuntimeError("HTTP 429: pausa automática da MYP ativa; registro ficará pendente")
 
     for tentativa in range(1, MAX_TENTATIVAS_REQUEST + 1):
         esperar_rate_limit()
@@ -333,21 +412,18 @@ def get_com_retry(
                 resposta.raise_for_status()
                 return resposta
 
+            if resposta.status_code == 429:
+                espera = segundos_retry_after(resposta)
+                _BLOQUEIO_429_ATE = time.monotonic() + max(60.0, espera or 180.0)
+                # Não insiste nem perde o lote: marca a carta como pendente
+                # e as seguintes não pressionam o servidor durante o bloqueio.
+                raise RuntimeError("HTTP 429: limite da MYP; carta pendente para outra execução")
+
             if tentativa >= MAX_TENTATIVAS_REQUEST:
                 resposta.raise_for_status()
 
-            if resposta.status_code == 429:
-                espera = segundos_retry_after(resposta)
-                if espera is None:
-                    espera = min(
-                        ESPERA_INICIAL_429 * (2 ** (tentativa - 1)),
-                        ESPERA_MAXIMA_429,
-                    )
-                print(f"  429 -> {espera:.0f}s", flush=True)
-            else:
-                espera = min(5 * tentativa, 30)
-                print(f"  HTTP {resposta.status_code} -> {espera:.0f}s", flush=True)
-
+            espera = min(5 * tentativa, 30)
+            print(f"  HTTP {resposta.status_code} -> {espera:.0f}s", flush=True)
             time.sleep(espera)
 
         except (requests.Timeout, requests.ConnectionError) as e:
@@ -491,7 +567,7 @@ def normalizar_foil(variante: str | None) -> str:
     if not variante:
         return "Normal"
     k = chave_texto(variante)
-    if k in {"nao", "não", "normal", "regular"}:
+    if k in {"nao", "não", "nao existe foil", "sem foil", "normal", "regular"}:
         return "Normal"
     if "master" in k and "ball" in k:
         return "Masterball Foil"
@@ -731,6 +807,37 @@ def extrair_preco_tcgplayer(soup: BeautifulSoup) -> float | None:
     return None
 
 
+def extrair_ilustrador(soup: BeautifulSoup) -> str | None:
+    """Lê o campo real 'Ilustrador' na página MYP, sem adivinhar.
+
+    Funciona quando o rótulo e o nome estão no mesmo elemento ou em linhas
+    consecutivas. Não confunde o nome com HP, Raridade ou Tipo Carta.
+    """
+    linhas = [texto_normalizado(linha) for linha in soup.get_text("\n", strip=True).splitlines()]
+    linhas = [linha for linha in linhas if linha]
+    rotulo = re.compile(r"^(?:Ilustrador(?:a)?|Illustrator|Illustrated by|Ilustrado por)\b\s*[:\-–]?\s*(.*)$", re.I)
+    proibidos = re.compile(
+        r"^(?:HP\b|Tipo\b|Raridade\b|Data de lançamento\b|Descrição\b|"
+        r"Ofertas\b|Outras Edições\b|Código\b|Edição\b)", re.I
+    )
+    for indice, linha in enumerate(linhas):
+        achou = rotulo.match(linha)
+        if not achou:
+            continue
+        candidato = texto_normalizado(achou.group(1))
+        if not candidato and indice + 1 < len(linhas):
+            candidato = linhas[indice + 1]
+        # Se o layout juntou metadados numa única linha, termina antes deles.
+        candidato = re.split(
+            r"\s+(?=HP\s*\d+\b|Tipo Energia\b|Tipo Carta\b|"
+            r"Raridade\b|Data de lançamento\b|Descrição\b)",
+            candidato, maxsplit=1, flags=re.I
+        )[0].strip(" :–-\t")
+        if candidato and len(candidato) <= 120 and not proibidos.match(candidato):
+            return candidato
+    return None
+
+
 def extrair_dados_carta(soup: BeautifulSoup, fonte: dict) -> dict:
     texto = soup.get_text("\n", strip=True)
 
@@ -802,6 +909,7 @@ def extrair_dados_carta(soup: BeautifulSoup, fonte: dict) -> dict:
         "sigla_colecao": sigla,
         "ano": ano,
         "raridade": raridade,
+        "ilustrador": extrair_ilustrador(soup),
     }
 
 
@@ -1142,10 +1250,11 @@ def filtrar_anuncios_do_dono(
         return []
 
     saida = []
+    idioma_exato = normalizar_idioma(registro.get("lingua") or registro.get("idioma"))
     for a in anuncios:
         if normalizar_estado(a.get("estado")) != estado:
             continue
-        if grupo_idioma(a.get("idioma")) != grupo:
+        if normalizar_idioma(a.get("idioma")) != idioma_exato:
             continue
         if bool(a.get("jumbo")) != jumbo_dono:
             continue
@@ -1163,26 +1272,51 @@ def preco_para_dono_anuncios(
     return resumo_anuncios(filtrar_anuncios_do_dono(anuncios, registro, permite_foil))
 
 
-def preco_para_dono_catalogo(catalogo: dict, registro: dict) -> dict | None:
-    """Fallback para quando a coleta falha e só temos o catálogo salvo."""
-    estado = normalizar_estado(registro.get("estado"))
-    grupo = grupo_idioma(registro.get("lingua") or registro.get("idioma"))
-    if not estado or not grupo:
-        return None
+def chave_preco_exato(estado: str, idioma: str, foil: str, jumbo: bool,
+                      permite_foil: bool) -> str:
+    foil_key = normalizar_foil(foil) if permite_foil else "Normal"
+    return f"{idioma}|{estado}|{foil_key}|{'Jumbo' if jumbo else 'Normal'}"
 
-    bloco = catalogo.get("precos_por_idioma", {}).get(grupo)
-    if not bloco:
+
+def precos_por_combinacao(anuncios: list[dict], permite_foil: bool) -> dict:
+    """Preços sem misturar idioma, estado, acabamento nem tamanho."""
+    grupos = defaultdict(list)
+    for a in anuncios:
+        estado = normalizar_estado(a.get("estado"))
+        idioma = normalizar_idioma(a.get("idioma"))
+        if not estado or not idioma:
+            continue
+        chave = chave_preco_exato(estado, idioma, a.get("foil", "Normal"),
+                                 bool(a.get("jumbo")), permite_foil)
+        grupos[chave].append(a)
+    return {chave: resumo_anuncios(grupo) for chave, grupo in sorted(grupos.items())}
+
+
+def preco_para_dono_catalogo(catalogo: dict, registro: dict) -> dict | None:
+    """Cache exato; evita usar preço incorreto de outro foil/idioma."""
+    estado = normalizar_estado(registro.get("estado"))
+    idioma = normalizar_idioma(registro.get("lingua") or registro.get("idioma"))
+    if not estado or not idioma:
         return None
+    if "precos_por_combinacao" in catalogo:
+        jumbo = bool(registro.get("jumbo")) or detectar_jumbo(registro.get("foil"))
+        chave = chave_preco_exato(estado, idioma, registro.get("foil", "Normal"),
+                                 jumbo, bool(catalogo.get("permite_variantes_foil", False)))
+        return catalogo["precos_por_combinacao"].get(chave)
+
+    # Catálogos antigos podem não conter combinações exatas. Não atribuir
+    # preços agregados quando há variantes foil ou tamanho incompatíveis.
+    if catalogo.get("precos_por_foil") or catalogo.get("precos_por_tamanho"):
+        return None
+    grupo = grupo_idioma(idioma)
+    bloco = catalogo.get("precos_por_idioma", {}).get(grupo, {})
     stats = bloco.get("por_estado", {}).get(estado)
+    # O agrupamento legado mistura Inglês, Alemão etc. Apenas BR é inequívoco.
+    if grupo != "BR":
+        return None
     if not stats:
         return None
-    return {
-        "menor": stats.get("menor"),
-        "media": stats.get("media"),
-        "mediana": stats.get("mediana"),
-        "maior": stats.get("maior"),
-        "anuncios": stats.get("anuncios"),
-    }
+    return {k: stats.get(k) for k in ("menor", "media", "mediana", "maior", "anuncios")}
 
 
 # ============================================================
@@ -1245,6 +1379,10 @@ def coletar_carta_myp(
     tamanhos = precos_por_tamanho(todos_anuncios)
 
     numero_ofertas = extrair_numero_ofertas(primeira)
+    # Diferencie produto sem ofertas de HTML bloqueado/layout alterado:
+    # nunca sobrescreva todas as cotações por uma coleta silenciosamente vazia.
+    if not todos_anuncios and numero_ofertas != 0:
+        raise RuntimeError("Nenhum anúncio extraído; possível bloqueio ou mudança no layout da MYP")
     if numero_ofertas is None:
         numero_ofertas = len(todos_anuncios)
 
@@ -1263,6 +1401,7 @@ def coletar_carta_myp(
         "era": determinar_era(dados.get("ano"), dados.get("sigla_colecao"), dados.get("colecao")),
         "ano": dados.get("ano"),
         "raridade": dados.get("raridade"),
+        "ilustrador": dados.get("ilustrador"),  # apenas da página MYP, nunca do inventário pessoal
         "menor_preco": geral.get("menor") if geral else None,
         "media": geral.get("media") if geral else None,
         "mediana": geral.get("mediana") if geral else None,
@@ -1274,6 +1413,8 @@ def coletar_carta_myp(
         "tags_extras": tags_extras_registro(fonte),
         "caminho_foto": imagem,
         "link_myp": url_final,
+        "precos_por_combinacao": precos_por_combinacao(todos_anuncios, permite_foil),
+        "permite_variantes_foil": permite_foil,
     }
 
     if idiomas:
@@ -1297,11 +1438,14 @@ def criar_registro_leon(
     else:
         precos = preco_para_dono_catalogo(catalogo, fonte)
 
+    # Ilustrador não faz parte das propriedades pessoais da carta;
+    # é metadado global, salvo unicamente em cartas.json.
     return {
         "nome": fonte.get("nome") or catalogo.get("nome"),
         "id": catalogo.get("id"),
         "estado": fonte.get("estado"),
         "idioma": fonte.get("lingua") or fonte.get("idioma"),
+        "foil": fonte.get("foil"),
         "menor_preco": precos.get("menor") if precos else None,
         "preco_medio": precos.get("media") if precos else None,
         "mediana_preco": precos.get("mediana") if precos else None,
@@ -1310,6 +1454,68 @@ def criar_registro_leon(
         "tags_extras": tags_extras_registro(fonte),
         "data_hora_coleta": catalogo.get("data_hora_coleta"),
     }
+
+
+def agrupar_registros_leon(registros: list[dict], carta: dict) -> dict:
+    """Um único registro formatado por carta, com variações e preços próprios.
+
+    Só atributos realmente compartilhados sobem ao nível principal. O conjunto
+    de campos por variante continua completo após herdar os valores do pai.
+    Não soma preços nem mistura estados, idiomas, foil ou tags de exemplares.
+    """
+    if not registros:
+        raise ValueError("Não há registros para agrupar.")
+
+    total = sum(int(r.get("quantidade", 1)) for r in registros)
+    primeiro = registros[0]
+    resultado = {
+        "nome": carta.get("nome") or primeiro.get("nome"),
+        "numeracao": carta.get("numeracao"),
+        "id": carta.get("id"),
+        "link": carta.get("link_myp"),
+        "quantidade": total,
+        "data_hora_coleta": carta.get("data_hora_coleta"),
+        "data_hora_cotizacao": carta.get("data_hora_cotizacao") or carta.get("data_hora_coleta"),
+    }
+
+    # A chave nome pode diferir em traduções; somente nesse caso é variante.
+    # Tags devem ficar somente nos exemplares que as possuem.
+    atributos = (
+        "estado", "idioma", "foil", "tags_extras",
+        "menor_preco", "preco_medio", "mediana_preco", "maior_preco",
+    )
+    comuns = {}
+    compartilhados = set()
+    for campo in atributos:
+        valores = [r.get(campo) for r in registros]
+        if all(v == valores[0] for v in valores):
+            compartilhados.add(campo)
+            valor = valores[0]
+            if campo != "tags_extras" or valor:
+                comuns[campo] = valor
+    resultado.update(comuns)
+
+    if len(registros) == 1:
+        return resultado
+
+    variantes = []
+    for r in registros:
+        variante = {"quantidade": r.get("quantidade", 1)}
+        if r.get("nome") and r["nome"] != resultado["nome"]:
+            variante["nome"] = r["nome"]
+        for campo in atributos:
+            if campo in compartilhados:
+                continue
+            valor = r.get(campo)
+            # Com tags heterogêneas, [] é importante: significa sem tag
+            # enquanto outra versão tem tags.
+            if campo == "tags_extras":
+                variante[campo] = valor or []
+            else:
+                variante[campo] = valor
+        variantes.append(variante)
+    resultado["variantes"] = variantes
+    return resultado
 
 
 def _fmt_preco(valor) -> str:
@@ -1376,171 +1582,604 @@ def achar_existente(
 
 
 # ============================================================
-# COLETAR
+# MODOS REGISTRAR / COTIZAR
 # ============================================================
 
-def coletar_todas(caminho_fonte: Path) -> None:
-    fonte = carregar_lista_json(caminho_fonte)
-    catalogo_antigo = carregar_json_se_existir(ARQUIVO_CARTAS)
-    por_link, por_nome_numero = indexar_catalogo_existente(catalogo_antigo)
-    proximo = proximo_id(catalogo_antigo)
+CAMPOS_PRECO_DONO = ("menor_preco", "preco_medio", "mediana_preco", "maior_preco")
 
-    arquivo_dono = caminho_fonte.with_name(f"{caminho_fonte.stem} Formatado.json")
-    parcial_dono = caminho_fonte.with_name(f"{caminho_fonte.stem} Formatado.parcial.json")
 
-    # Agrupa pelo link para não consultar duas vezes a mesma carta.
+def data_agora() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def interpretar_data(valor):
+    if not valor:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(valor).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.astimezone()
+        return dt.astimezone()
+    except (ValueError, TypeError):
+        return None
+
+
+def link_carta(registro: dict) -> str:
+    return texto_normalizado(registro.get("link") or registro.get("link_myp") or "")
+
+
+def url_myp_valida(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return host in {"mypcards.com", "www.mypcards.com"} and bool(id_produto_myp(url))
+
+
+def chave_carta(registro: dict) -> tuple:
+    link = link_carta(registro)
+    pid = id_produto_myp(link)
+    if pid:
+        return ("myp", pid)
+    return ("nome", chave_texto(registro.get("nome")), chave_texto(registro.get("numeracao")))
+
+
+def chave_variante(registro: dict) -> tuple:
+    lingua = normalizar_idioma(registro.get("lingua") or registro.get("idioma"))
+    # Aceita também estados desconhecidos (?) sem confundi-los com NM.
+    estado = normalizar_estado(registro.get("estado")) or chave_texto(registro.get("estado"))
+    foil = normalizar_foil(registro.get("foil"))
+    jumbo = bool(registro.get("jumbo")) or detectar_jumbo(registro.get("foil"))
+    tags = tuple(sorted({chave_texto(t) for t in tags_extras_registro(registro)}))
+    return (estado, chave_texto(lingua), chave_texto(foil), jumbo, tags,
+            chave_texto(registro.get("nome")))
+
+
+def combinar_registros_iguais(registros: list[dict]) -> list[dict]:
+    saida = []
+    indices = {}
+    for registro in registros:
+        chave = chave_variante(registro)
+        if chave in indices:
+            atual = saida[indices[chave]]
+            atual["quantidade"] += int(registro.get("quantidade", 1))
+        else:
+            novo = dict(registro)
+            novo["quantidade"] = int(novo.get("quantidade", 1))
+            indices[chave] = len(saida)
+            saida.append(novo)
+    return saida
+
+
+def localizar_formatado(fonte: Path) -> Path:
+    """Prioriza um Formatado já existente, com ou sem espaço no nome."""
+    candidatos = [
+        fonte.with_name(f"{fonte.stem}Formatado.json"),
+        fonte.with_name(f"{fonte.stem} Formatado.json"),
+    ]
+    existentes = [p for p in candidatos if p.exists()]
+    if len(existentes) > 1:
+        raise ValueError(f"Há dois formatados para {fonte.name}. Mantenha apenas um: "
+                         + ", ".join(p.name for p in existentes))
+    return existentes[0] if existentes else candidatos[0]
+
+
+def fonte_para_leon(r: dict, catalogo: dict, *, anuncios=None, permite_foil=False) -> dict:
+    """Transforma fonte pessoal em registro individual cotado."""
+    base = criar_registro_leon(catalogo, r, anuncios, permite_foil)
+    base["data_hora_cotizacao"] = (
+        catalogo.get("data_hora_cotizacao") or catalogo.get("data_hora_coleta")
+    )
+    return base
+
+
+def valor_montante(r: dict, quantidade: int) -> tuple[float, float, int, int]:
+    minimo = r.get("menor_preco")
+    medio = r.get("preco_medio")
+    v_min = float(minimo) * quantidade if minimo is not None else 0.0
+    v_med = float(medio) * quantidade if medio is not None else 0.0
+    return v_min, v_med, quantidade if minimo is None else 0, quantidade if medio is None else 0
+
+
+class Montante:
+    def __init__(self):
+        self.minimo = 0.0
+        self.medio = 0.0
+        self.sem_min = 0
+        self.sem_med = 0
+        self.unidades = 0
+        self.soma_percentual = 0.0
+        self.unidades_comparaveis = 0
+
+    def adicionar(self, r: dict, quantidade: int):
+        if quantidade <= 0:
+            return
+        minimo, medio, sem_min, sem_med = valor_montante(r, quantidade)
+        self.minimo += minimo
+        self.medio += medio
+        self.sem_min += sem_min
+        self.sem_med += sem_med
+        self.unidades += quantidade
+
+    def comparar(self, velho: dict, novo: dict, quantidade: int):
+        if quantidade <= 0:
+            return
+        a = velho.get("preco_medio")
+        b = novo.get("preco_medio")
+        if a is not None and b is not None and float(a) > 0:
+            self.soma_percentual += (float(b) / float(a) - 1.0) * 100.0 * quantidade
+            self.unidades_comparaveis += quantidade
+
+    def resumo(self, *, cotizacao=False) -> str:
+        texto = (f"MONTANTE DA LEVA: mínimo R$ {self.minimo:,.2f} | "
+                 f"médio R$ {self.medio:,.2f} | {self.unidades} unidades")
+        if self.sem_min or self.sem_med:
+            texto += (f" | sem preço: {self.sem_min} (mínimo), "
+                      f"{self.sem_med} (média); totais parciais")
+        if cotizacao:
+            if self.unidades_comparaveis:
+                percentual = self.soma_percentual / self.unidades_comparaveis
+                texto += (f"\nVARIAÇÃO MÉDIA VS. ÚLTIMA COTIZAÇÃO: "
+                          f"{percentual:+.2f}% ({self.unidades_comparaveis} unidades comparáveis)")
+            else:
+                texto += "\nVARIAÇÃO MÉDIA VS. ÚLTIMA COTIZAÇÃO: N/D (sem preços anteriores comparáveis)"
+        return texto
+
+
+def preservar_dados_gerais(novo: dict, antigo: dict | None) -> dict:
+    """Preserva metadados já conhecidos se MYP não fornecer na atualização."""
+    if not antigo:
+        return novo
+    for k in ("colecao", "sigla_colecao", "era", "ano", "raridade", "ilustrador",
+              "preco_tcgplayer", "caminho_foto"):
+        if novo.get(k) is None:
+            novo[k] = antigo.get(k)
+    # As tags do catálogo geral pertencem ao histórico da carta; o registro
+    # de novas pessoas não deve apagá-las indiscriminadamente.
+    novo["tags_extras"] = combinar_tags_extras([antigo, novo])
+    return novo
+
+
+def achar_dono_existente(dono: list[dict], reg: dict, card_id: str | None):
+    """Localiza uma única carta pessoal sem fundir produtos MYP diferentes."""
+    pid = id_produto_myp(link_carta(reg))
+    if card_id:
+        correspondentes = [(i, d) for i, d in enumerate(dono) if d.get("id") == card_id]
+        if len(correspondentes) == 1:
+            return correspondentes[0]
+    if pid:
+        correspondentes = [(i, d) for i, d in enumerate(dono)
+                           if id_produto_myp(link_carta(d)) == pid]
+        if len(correspondentes) == 1:
+            return correspondentes[0]
+    alvo = (chave_texto(reg.get("nome")), chave_texto(reg.get("numeracao")))
+    correspondentes = [(i, d) for i, d in enumerate(dono)
+                       if (chave_texto(d.get("nome")), chave_texto(d.get("numeracao"))) == alvo
+                       and (not pid or not id_produto_myp(link_carta(d))
+                            or id_produto_myp(link_carta(d)) == pid)]
+    return correspondentes[0] if len(correspondentes) == 1 else (None, None)
+
+
+def achar_catalogo_seguro(registro: dict, catalogo: list[dict]) -> dict | None:
+    card_id = registro.get("id")
+    if card_id:
+        for c in catalogo:
+            if c.get("id") == card_id:
+                return c
+    por_link, por_nome_numero = indexar_catalogo_existente(catalogo)
+    c = achar_existente(registro, por_link, por_nome_numero)
+    # Não une cartas distintas que tenham mesmo nome/número, mas links diversos.
+    if c and id_produto_myp(link_carta(c)) and id_produto_myp(link_carta(registro)):
+        if id_produto_myp(link_carta(c)) != id_produto_myp(link_carta(registro)):
+            return None
+    return c
+
+
+def atualizar_catalogo(catalogo: list[dict], carta: dict) -> None:
+    cid = carta.get("id")
+    for i, velho in enumerate(catalogo):
+        if cid and velho.get("id") == cid:
+            catalogo[i] = carta
+            return
+    catalogo.append(carta)
+
+
+def preparar_salvamento(caminhos: list[Path]) -> None:
+    for caminho in caminhos:
+        if caminho.exists():
+            criar_backup(caminho)
+
+
+def gravar_par(catalogo: list[dict], dono: list[dict], caminho_dono: Path):
+    # Arquivos finais são checkpoints. Se uma execução for interrompida após
+    # apenas a primeira gravação, a próxima reconcilia o segundo arquivo sem
+    # duplicar exemplares. Cada arquivo é substituído atomicamente.
+    salvar_json(ARQUIVO_CARTAS, catalogo)
+    salvar_json(caminho_dono, dono)
+
+
+def registrar(caminho_fonte: Path):
+    caminho_dono = localizar_formatado(caminho_fonte)
+    bruto = carregar_lista_json(caminho_fonte)
+    registros = expandir_registros_fonte(bruto)
+    catalogo = carregar_json_se_existir(ARQUIVO_CARTAS)
+    dono = carregar_json_se_existir(caminho_dono)
+    proximo = proximo_id(catalogo)
     grupos = defaultdict(list)
-    sem_link = []
-    for reg in fonte:
-        link = texto_normalizado(reg.get("link", ""))
-        if link:
-            pid = id_produto_myp(link)
-            chave = f"myp:{pid}" if pid else link
-            grupos[chave].append(reg)
-        else:
-            sem_link.append(reg)
+    for r in registros:
+        grupos[chave_carta(r)].append(r)
 
-    total = len(grupos)
+    print(f"\nREGISTRAR | {caminho_fonte.name} -> {caminho_dono.name}")
+    print(f"{len(grupos)} cartas distintas, {len(registros)} combinações de variantes")
+    print("preços: menor | média | mediana | maior (R$)")
+    print("Registro incremental: cartas/variantes iguais não serão duplicadas.\n")
+    preparar_salvamento([ARQUIVO_CARTAS, caminho_dono])
     sessao = requests.Session()
+    montante = Montante()
+    adicionadas = 0
+    corrigidas_total = 0
+    repetidas = 0
+    problemas = []
+    sucesso = 0
 
-    # Mantém tudo que já existia em cartas.json e atualiza apenas as cartas
-    # presentes nesta fonte. Cartas novas são adicionadas ao final.
-    catalogo_final = [dict(c) for c in catalogo_antigo]
-    indice_por_id = {c.get("id"): i for i, c in enumerate(catalogo_final) if c.get("id")}
-    dono_final = []
-    erros = []
-
-    print(f"\nCOLETAR | {caminho_fonte.name} | {total} cartas únicas | {len(fonte)} registros do dono")
-    print("preços: menor | média | mediana | maior\n")
-
-    for i, (_, registros) in enumerate(grupos.items(), start=1):
-        primeiro = registros[0]
-        nome = primeiro.get("nome", "Sem nome")
-        num = primeiro.get("numeracao", "?")
-
-        existente = achar_existente(primeiro, por_link, por_nome_numero)
-        if existente and existente.get("id"):
-            card_id = existente["id"]
-        else:
-            card_id = gerar_id(proximo)
+    for n, (_, regs) in enumerate(grupos.items(), 1):
+        base = regs[0]
+        existente = achar_catalogo_seguro(base, catalogo)
+        id_carta = existente.get("id") if existente else None
+        idx_dono, registro_antigo = achar_dono_existente(dono, base, id_carta)
+        if not id_carta and registro_antigo:
+            id_carta = registro_antigo.get("id")
+        if not id_carta:
+            id_carta = gerar_id(proximo)
             proximo += 1
 
-        try:
-            carta, anuncios, permite_foil = coletar_carta_myp(primeiro, card_id, sessao)
-            status = ""
-        except Exception as e:
-            if existente:
-                carta = dict(existente)
-                carta["erro_ultima_coleta"] = str(e)
-                anuncios = None
-                permite_foil = False
-                status = "ANTIGO "
-            else:
-                erros.append({
-                    "nome": nome,
-                    "numeracao": num,
-                    "link": primeiro.get("link"),
-                    "erro": str(e),
-                })
-                print(f"[{i}/{total}] {nome} {num} | PULADA")
+        anteriores = (expandir_registros_fonte([registro_antigo])
+                      if registro_antigo else [])
+        anteriores = combinar_registros_iguais(anteriores)
+        novos_brutos = combinar_registros_iguais(regs)
+        merged = [dict(r) for r in anteriores]
+        # Se a fonte atual substituir um registro F/? antigo por uma
+        # conservação definida, isso é uma correção, NÃO uma nova carta.
+        # Quando a fonte contém o total inteiro e uma variante foi trocada,
+        # também podemos reconhecer a correção sem inflar a quantidade.
+        chaves_fonte = {chave_variante(r) for r in novos_brutos}
+        soma_antiga = sum(r["quantidade"] for r in anteriores)
+        soma_fonte = sum(r["quantidade"] for r in novos_brutos)
+        corrigidas = set()
+        for atual in novos_brutos:
+            chave_atual = chave_variante(atual)
+            if any(chave_variante(x) == chave_atual for x in merged):
                 continue
+            candidatos = []
+            for pos, anterior in enumerate(merged):
+                if chave_variante(anterior) in chaves_fonte:
+                    continue
+                if chave_variante(anterior) in corrigidas:
+                    continue
+                mesma_base = (
+                    chave_variante(anterior)[1:4] == chave_atual[1:4]
+                    and chave_variante(anterior)[4:] == chave_atual[4:]
+                    and int(anterior.get("quantidade", 1)) == int(atual.get("quantidade", 1))
+                )
+                estado_antigo = chave_texto(anterior.get("estado"))
+                if mesma_base and (estado_antigo in {"?", "f"}
+                                   or (soma_antiga == soma_fonte and soma_fonte > 0)):
+                    candidatos.append(pos)
+            if len(candidatos) == 1:
+                pos = candidatos[0]
+                merged[pos] = dict(atual)
+                corrigidas.add(chave_atual)
 
-        # Tags extras pertencentes à mesma carta são unidas sem duplicar.
-        # Se a carta já existia no catálogo, preserva também as tags antigas.
-        base_tags = [existente] if existente else []
-        carta["tags_extras"] = combinar_tags_extras(base_tags + registros)
+        indices = {chave_variante(r): i for i, r in enumerate(merged)}
+        incrementos = {}
+        for r in novos_brutos:
+            chave = chave_variante(r)
+            pos = indices.get(chave)
+            if pos is None:
+                indices[chave] = len(merged)
+                merged.append(dict(r))
+                incremento = int(r.get("quantidade", 1))
+            else:
+                anterior = int(merged[pos].get("quantidade", 1))
+                novo_total = max(anterior, int(r.get("quantidade", 1)))
+                merged[pos]["quantidade"] = novo_total
+                incremento = novo_total - anterior
+            if incremento:
+                incrementos[chave] = incremento
 
-        if card_id in indice_por_id:
-            catalogo_final[indice_por_id[card_id]] = carta
+        unidade_nova = sum(incrementos.values())
+        pendente = bool(registro_antigo and registro_antigo.get("registro_pendente"))
+        if not unidade_nova and not pendente and existente and not corrigidas:
+            repetidas += 1
+            print(f"[{n}/{len(grupos)}] {base.get('nome')} {base.get('numeracao')} | JÁ REGISTRADA")
+            continue
+
+        link = link_carta(base) or (link_carta(registro_antigo) if registro_antigo else "")
+        if not link and existente:
+            link = link_carta(existente)
+        for r in merged:
+            r.setdefault("link", link)
+        carta = dict(existente) if existente else {
+            "id": id_carta, "nome": base.get("nome"),
+            "numeracao": base.get("numeracao"), "link_myp": link,
+            "data_hora_coleta": None, "data_hora_cotizacao": None,
+        }
+        carta["id"] = id_carta
+        if link and not carta.get("link_myp"):
+            carta["link_myp"] = link
+        # Para uma nova variante, uma cotação nova evita aplicar preços de
+        # estado/foil/idioma incompatíveis existentes nos caches legados.
+        novos_precificaveis = [r for r in merged
+                              if chave_variante(r) in incrementos or chave_variante(r) in corrigidas
+                              and normalizar_estado(r.get("estado"))
+                              and normalizar_idioma(r.get("lingua") or r.get("idioma"))]
+        falta_cotacao_exata = any(
+            "precos_por_combinacao" not in carta or
+            preco_para_dono_catalogo(carta, r) is None
+            for r in novos_precificaveis
+        )
+        precisa_consultar = bool(
+            (not existente) or pendente or falta_cotacao_exata
+        )
+        anuncios = None
+        permite_foil = bool(carta.get("permite_variantes_foil", False))
+        erro = None
+        if precisa_consultar:
+            if url_myp_valida(link):
+                try:
+                    fonte_myp = dict(base, link=link)
+                    recolhida, anuncios, permite_foil = coletar_carta_myp(fonte_myp, id_carta, sessao)
+                    recolhida["data_hora_cotizacao"] = recolhida["data_hora_coleta"]
+                    carta = preservar_dados_gerais(recolhida, existente)
+                    carta["tags_extras"] = combinar_tags_extras([carta] + merged)
+                    atualizar_catalogo(catalogo, carta)
+                    sucesso += 1
+                except Exception as exc:
+                    erro = str(exc)
+            else:
+                erro = "link MYP ausente ou inválido"
+
+        if erro:
+            problemas.append({"modo": "registrar", "arquivo": caminho_fonte.name,
+                              "nome": base.get("nome"), "numeracao": base.get("numeracao"),
+                              "link": link, "erro": erro})
+            print(f"[{n}/{len(grupos)}] {base.get('nome')} {base.get('numeracao')} | PENDENTE: {erro}")
+
+        if anuncios is not None:
+            novos_dono = [fonte_para_leon(r, carta, anuncios=anuncios,
+                                          permite_foil=permite_foil) for r in merged]
         else:
-            indice_por_id[card_id] = len(catalogo_final)
-            catalogo_final.append(carta)
+            # Preserve de verdade a precificação de variantes já existentes;
+            # use o catálogo somente para os novos registros ainda sem preço.
+            chaves_anteriores = {chave_variante(r): r for r in anteriores}
+            novos_dono = []
+            for r in merged:
+                chave = chave_variante(r)
+                if chave in chaves_anteriores and chave not in corrigidas:
+                    cache = dict(chaves_anteriores[chave])
+                    cache["quantidade"] = r["quantidade"]
+                    novos_dono.append(cache)
+                else:
+                    novos_dono.append(fonte_para_leon(r, carta))
 
-        registros_dono = []
-        for reg in registros:
-            r_dono = criar_registro_leon(carta, reg, anuncios, permite_foil)
-            dono_final.append(r_dono)
-            registros_dono.append(r_dono)
-
-        if registros_dono:
-            print(f"[{i}/{total}] {status}{nome} {num} | {texto_preco_dono(registros_dono[0])}")
-            for extra in registros_dono[1:]:
-                print(f"           {texto_preco_dono(extra)}")
+        carta_pessoal = dict(carta)
+        if anuncios is None and registro_antigo:
+            carta_pessoal["data_hora_coleta"] = registro_antigo.get("data_hora_coleta")
+            carta_pessoal["data_hora_cotizacao"] = (
+                registro_antigo.get("data_hora_cotizacao") or registro_antigo.get("data_hora_coleta")
+            )
+        novo_dono = agrupar_registros_leon(novos_dono, carta_pessoal)
+        novo_dono["id"] = id_carta if existente or anuncios is not None else None
+        novo_dono["link"] = link or None
+        novo_dono["registro_pendente"] = bool(erro)
+        # sem link ou falha de coleta: o registro pessoal fica protegido;
+        # somente cartas efetivamente consultadas entram no catálogo geral.
+        if idx_dono is None:
+            dono.append(novo_dono)
         else:
-            print(f"[{i}/{total}] {status}{nome} {num}")
+            dono[idx_dono] = novo_dono
+        gravar_par(catalogo, dono, caminho_dono)
+        for r in novos_dono:
+            montante.adicionar(r, incrementos.get(chave_variante(r), 0))
+        adicionadas += unidade_nova
+        corrigidas_total += len(corrigidas)
+        print(f"[{n}/{len(grupos)}] {base.get('nome')} {base.get('numeracao')} | "
+              f"+{unidade_nova} unidades, {len(corrigidas)} correções | "
+              + ("COTADA" if anuncios is not None else "CACHE" if not erro else "SEM COTAÇÃO"))
+        for r in novos_dono:
+            if chave_variante(r) in incrementos:
+                print(f"            {texto_preco_dono(r)} | +{incrementos[chave_variante(r)]} un.")
+        print("            " + montante.resumo())
 
-        # Progresso separado dos arquivos finais: uma interrupção não destrói
-        # uma coleta anterior completa.
-        salvar_json(PARCIAL_CARTAS, catalogo_final)
-        salvar_json(parcial_dono, dono_final)
-
-    for reg in sem_link:
-        erros.append({
-            "nome": reg.get("nome"),
-            "numeracao": reg.get("numeracao"),
-            "link": None,
-            "erro": "sem link MYP",
-        })
-
-    salvar_json(ARQUIVO_CARTAS, catalogo_final)
-    salvar_json(arquivo_dono, dono_final)
-
-    for parcial in (PARCIAL_CARTAS, parcial_dono):
-        if parcial.exists():
-            parcial.unlink()
-
-    if erros:
-        salvar_json(BASE_DIR / "erros_coleta.json", erros)
-
-    print(
-        f"\nOK | cartas.json: {len(catalogo_final)} | "
-        f"{arquivo_dono.name}: {len(dono_final)} | puladas: {len(erros)}"
-    )
+    sessao.close()
+    salvar_json(BASE_DIR / "erros_coleta.json", problemas)
+    print(f"\nREGISTRO CONCLUÍDO | novas unidades: {adicionadas} | "
+          f"variantes corrigidas: {corrigidas_total} | "
+          f"repetidas: {repetidas} | pendências: {len(problemas)} | "
+          f"consultadas na MYP: {sucesso}")
+    print(montante.resumo())
+    print(f"Arquivos: {caminho_dono.name} e {ARQUIVO_CARTAS.name}")
 
 
-# ============================================================
-# ENTRADA AUTOMÁTICA
-# ============================================================
+def cotizar(caminho_dono: Path, dias: float):
+    if dias < 0:
+        raise ValueError("O número de dias precisa ser >= 0.")
+    dono = carregar_lista_json(caminho_dono)
+    catalogo = carregar_json_se_existir(ARQUIVO_CARTAS)
+    proximo = proximo_id(catalogo)
+    limite = datetime.now().astimezone() - timedelta(days=dias)
+    print(f"\nCOTIZAR | {caminho_dono.name} | intervalo mínimo: {dias:g} dia(s)")
+    print("0 dias = cotizar todas, inclusive as cotizadas agora")
+    print("preços: menor | média | mediana | maior (R$)\n")
+    preparar_salvamento([ARQUIVO_CARTAS, caminho_dono])
+    sessao = requests.Session()
+    montante = Montante()
+    cotizadas = puladas = falhas = 0
+    problemas = []
 
-def localizar_jsons_fonte() -> list[Path]:
-    """Pega automaticamente os JSONs-fonte que estiverem ao lado do script."""
-    ignorar_exatos = {
-        ARQUIVO_CARTAS.name,
-        PARCIAL_CARTAS.name,
-        "erros_coleta.json",
-        "removidas_sem_imagem.json",
-    }
-
-    arquivos = []
-    for p in sorted(BASE_DIR.glob("*.json")):
-        if p.name in ignorar_exatos:
+    for n in range(len(dono)):
+        antiga = dono[n]
+        nome = antiga.get("nome")
+        num = antiga.get("numeracao")
+        data_anterior = interpretar_data(
+            antiga.get("data_hora_cotizacao") or antiga.get("data_hora_coleta")
+        )
+        if dias > 0 and data_anterior is not None and data_anterior > limite:
+            puladas += 1
+            print(f"[{n+1}/{len(dono)}] {nome} {num} | RECENTE, PULADA | "
+                  f"última: {data_anterior.isoformat(timespec='minutes')}")
             continue
-        nome_k = chave_texto(p.name)
-        if nome_k.endswith(" formatado.json"):
+
+        existente = achar_catalogo_seguro(antiga, catalogo)
+        cid = (existente.get("id") if existente else None) or antiga.get("id")
+        if not cid:
+            cid = gerar_id(proximo)
+            proximo += 1
+        link = link_carta(antiga) or link_carta(existente or {})
+        if not url_myp_valida(link):
+            falhas += 1
+            problemas.append({"modo": "cotizar", "arquivo": caminho_dono.name,
+                              "nome": nome, "numeracao": num, "link": link,
+                              "erro": "link MYP ausente ou inválido"})
+            print(f"[{n+1}/{len(dono)}] {nome} {num} | SEM LINK, não alterada")
             continue
-        if nome_k.endswith(" formatado.parcial.json"):
+
+        try:
+            fonte = dict(antiga, link=link)
+            nova_carta, anuncios, permite_foil = coletar_carta_myp(fonte, cid, sessao)
+        except Exception as exc:
+            falhas += 1
+            problemas.append({"modo": "cotizar", "arquivo": caminho_dono.name,
+                              "nome": nome, "numeracao": num, "link": link, "erro": str(exc)})
+            print(f"[{n+1}/{len(dono)}] {nome} {num} | ERRO: {exc} | "
+                  "preços e data anterior preservados")
+            salvar_json(BASE_DIR / "erros_coleta.json", problemas)
             continue
-        if p.name.startswith("removidas_"):
+
+        nova_carta["data_hora_cotizacao"] = nova_carta["data_hora_coleta"]
+        nova_carta = preservar_dados_gerais(nova_carta, existente)
+        antigos_r = combinar_registros_iguais(expandir_registros_fonte([antiga]))
+        nova_carta["tags_extras"] = combinar_tags_extras([nova_carta] + antigos_r)
+        novos_r = [fonte_para_leon(r, nova_carta, anuncios=anuncios,
+                                    permite_foil=permite_foil) for r in antigos_r]
+        novo_dono = agrupar_registros_leon(novos_r, nova_carta)
+        novo_dono["id"] = cid
+        novo_dono["registro_pendente"] = False
+        if antiga.get("link") and not novo_dono.get("link"):
+            novo_dono["link"] = antiga.get("link")
+
+        antigos_por_chave = {chave_variante(r): r for r in antigos_r}
+        for r in novos_r:
+            quantidade = int(r.get("quantidade", 1))
+            montante.adicionar(r, quantidade)
+            velho = antigos_por_chave.get(chave_variante(r))
+            if velho:
+                montante.comparar(velho, r, quantidade)
+
+        atualizar_catalogo(catalogo, nova_carta)
+        dono[n] = novo_dono
+        gravar_par(catalogo, dono, caminho_dono)
+        cotizadas += 1
+        print(f"[{n+1}/{len(dono)}] {nome} {num} | ATUALIZADA | "
+              f"última: {nova_carta['data_hora_cotizacao']}")
+        for r in novos_r:
+            print(f"            {texto_preco_dono(r)} | {r.get('quantidade',1)} un.")
+        print("            " + montante.resumo(cotizacao=True))
+
+    sessao.close()
+    salvar_json(BASE_DIR / "erros_coleta.json", problemas)
+    print(f"\nCOTIZAÇÃO CONCLUÍDA | cotizadas: {cotizadas} | "
+          f"puladas por idade: {puladas} | falhas: {falhas}")
+    print(montante.resumo(cotizacao=True))
+    print(f"Arquivos atualizados: {caminho_dono.name} e {ARQUIVO_CARTAS.name}")
+
+
+def localizar_arquivos(modo: str) -> list[Path]:
+    encontrados = []
+    for p in sorted(BASE_DIR.glob("*.json"), key=lambda p: p.name.casefold()):
+        stem = chave_texto(p.stem).replace(" ", "")
+        if stem in {"cartas", "erros_coleta", "controle_registros", "removidas_sem_imagem"}:
             continue
-        arquivos.append(p)
-    return arquivos
+        if (".parcial" in stem or ".backup" in stem or stem.startswith("removidas_")
+                or stem.endswith("parcial") or stem.endswith("backup")):
+            continue
+        e_formatado = stem.endswith("formatado")
+        if (modo == "cotizar") == e_formatado:
+            encontrados.append(p)
+    return encontrados
+
+
+def escolher_arquivo(modo: str, informado: str | None = None) -> Path:
+    arquivos = localizar_arquivos(modo)
+    if informado:
+        caminho = Path(informado)
+        if not caminho.is_absolute():
+            caminho = BASE_DIR / caminho
+        caminho = caminho.resolve()
+        if caminho not in [p.resolve() for p in arquivos]:
+            raise ValueError(f"Arquivo '{informado}' não elegível para {modo}. "
+                             "Coloque o JSON na pasta do Python e confira o nome.")
+        return caminho
+    if not arquivos:
+        tipo = "*Formatado.json" if modo == "cotizar" else "JSON pessoal não formatado"
+        raise FileNotFoundError(f"Nenhum {tipo} disponível na pasta do coletor.")
+    print("\nJSONs disponíveis:")
+    for n, arquivo in enumerate(arquivos, 1):
+        print(f"  {n}. {arquivo.name}")
+    while True:
+        valor = input("Escolha o número do JSON: ").strip()
+        if valor.isdigit() and 1 <= int(valor) <= len(arquivos):
+            return arquivos[int(valor) - 1]
+        print("Número inválido, tente novamente.")
+
+
+def escolher_dias() -> float:
+    while True:
+        valor = input("Cotizar cartas sem atualização há quantos dias? "
+                      "(0 = todas, 1 = 24h): ").strip().replace(",", ".")
+        try:
+            dias = float(valor)
+            if 0 <= dias < 100000:
+                return dias
+        except ValueError:
+            pass
+        print("Informe um número não negativo (ex.: 0, 1, 2, 7).")
 
 
 def main():
+    ap = argparse.ArgumentParser(
+        description="MYP v5.0: registrar novidades sem duplicatas ou cotizar coleções formatadas."
+    )
+    ap.add_argument("--modo", choices=["registrar", "cotizar"],
+                    help="Opcional. Sem o argumento, abre o menu interativo.")
+    ap.add_argument("--arquivo", help="Nome do JSON na mesma pasta do Python.")
+    ap.add_argument("--dias", type=float, help="Apenas na cotização: idade mínima em dias, 0=todas.")
+    args = ap.parse_args()
+
     try:
-        fontes = localizar_jsons_fonte()
-        if not fontes:
-            print("\nNenhum JSON-fonte encontrado na mesma pasta do coletor.")
-            return
-
-        for caminho_fonte in fontes:
-            coletar_todas(caminho_fonte)
-
+        modo = args.modo
+        if not modo:
+            print("\nCOLETOR MYP v5.0")
+            print("  1. Registrar novidades de um JSON pessoal")
+            print("  2. Cotizar um JSON pessoal Formatado")
+            while True:
+                selecao = input("Selecione 1 ou 2: ").strip()
+                if selecao in {"1", "2"}:
+                    modo = "registrar" if selecao == "1" else "cotizar"
+                    break
+                print("Escolha 1 ou 2.")
+        arquivo = escolher_arquivo(modo, args.arquivo)
+        if modo == "registrar":
+            registrar(arquivo)
+        else:
+            dias = args.dias if args.dias is not None else escolher_dias()
+            cotizar(arquivo, dias)
     except KeyboardInterrupt:
-        print("\nInterrompido. Os arquivos .parcial preservam o progresso desta execução.")
-    except Exception as e:
-        print(f"\nERRO: {e}")
+        print("\nInterrompido. Os arquivos finais já incluem cada carta concluída; "
+              "execute novamente quando quiser.")
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"\nERRO: {e}", file=sys.stderr)
         sys.exit(1)
+    except Exception as e:
+        print(f"\nERRO INESPERADO: {e}", file=sys.stderr)
+        raise
 
 
 if __name__ == "__main__":
