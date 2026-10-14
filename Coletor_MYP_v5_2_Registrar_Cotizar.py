@@ -1,18 +1,21 @@
-# Coletor MYP v5.0 — Registrar / Cotizar
+# Coletor MYP v5.2 — Registrar / Cotizar
 #
-# Uso: python Coletor_MYP_v5_0_Registrar_Cotizar.py
+# Uso: python Coletor_MYP_v5_2_Registrar_Cotizar.py
 #   1 = Registrar JSON pessoal (ex.: Leon.json) em LeonFormatado.json + cartas.json.
 #   2 = Cotizar apenas JSONs Formatado (ex.: LeonFormatado.json).
 #
 # Alternativa sem menu:
-#   python Coletor_MYP_v5_0_Registrar_Cotizar.py --modo registrar --arquivo Leon.json
-#   python Coletor_MYP_v5_0_Registrar_Cotizar.py --modo cotizar --arquivo LeonFormatado.json --dias 1
+#   python Coletor_MYP_v5_2_Registrar_Cotizar.py --modo registrar --arquivo Leon.json
+#   python Coletor_MYP_v5_2_Registrar_Cotizar.py --modo cotizar --arquivo LeonFormatado.json --dias 1
 #
 # Na importação incremental, as quantidades no JSON original são totais por
 # combinação estado/idioma/foil/tags; repetir a importação é idempotente.
 # O Registrar não apaga cartas ausentes da fonte. Remoções são manuais.
 # Em ambas as operações, os arquivos são atualizados a cada carta concluída.
 # A coleta de ilustrador fica apenas no cadastro geral (cartas.json).
+# Estado ? = média SP/MP. Se faltarem pelo menos 2 anúncios exatos,
+# recorre a outro idioma/estado e documenta a origem da estimativa.
+# Nunca mistura acabamentos/tamanhos diferentes.
 
 import json
 import os
@@ -73,6 +76,12 @@ HEADERS = {
 
 ESTADOS_VALIDOS = ("M", "NM", "SP", "MP", "HP", "DM", "D")
 ESTADO_PARA_MYP = {"D": "DM"}
+
+# Fallback transparente de precificação: a cada degrau de conservação,
+# o preço é ajustado em 12%. É uma HEURÍSTICA, não um dado real da MYP.
+AMOSTRAS_MINIMAS = 2
+AJUSTE_POR_DEGRAU_ESTADO = 1.12
+ORDEM_ESTADOS_ESTIMATIVA = ("M", "NM", "SP", "MP", "HP", "DM")
 
 IDIOMAS = {
     "portugues": "Português",
@@ -1264,12 +1273,205 @@ def filtrar_anuncios_do_dono(
     return saida
 
 
+def preco_medio_entre_sp_mp(sp: dict | None, mp: dict | None) -> dict | None:
+    """Estado ? = média SP/MP por indicador, com auditoria de fontes."""
+    campos = ("menor", "media", "mediana", "maior")
+    if not sp or not mp or any(sp.get(c) is None or mp.get(c) is None for c in campos):
+        return None
+    resultado = {c: round((float(sp[c]) + float(mp[c])) / 2, 2) for c in campos}
+    info_sp = sp.get("cotacao_info", {})
+    info_mp = mp.get("cotacao_info", {})
+    exatos = int(info_sp.get("amostras_exatas", 0)) + int(info_mp.get("amostras_exatas", 0))
+    usados = int(info_sp.get("amostras_referencia", 0)) + int(info_mp.get("amostras_referencia", 0))
+    tipos = (info_sp.get("tipo"), info_mp.get("tipo"))
+    tipo = "direta" if all(t == "direta" for t in tipos) else "mista" if exatos else "estimada"
+    resultado["anuncios"] = exatos + usados
+    resultado["cotacao_info"] = {
+        "tipo": tipo,
+        "confianca": "media" if tipo == "direta" else "baixa",
+        "amostras_exatas": exatos,
+        "amostras_referencia": usados,
+        "estado_solicitado": "?",
+        "metodo": "media_simples_sp_mp",
+        "observacao": "Média aritmética de SP e MP; cada condição pode ter fallback documentado.",
+        "referencias": {"SP": info_sp, "MP": info_mp},
+    }
+    return resultado
+
+
+def estado_desconhecido(registro: dict) -> bool:
+    return texto_normalizado(registro.get("estado")) == "?"
+
+
+def _ofertas_compativeis(anuncios: list[dict], registro: dict, permite_foil: bool) -> list[dict]:
+    """Nunca usa outro acabamento ou tamanho como substituto."""
+    foil_alvo = normalizar_foil(registro.get("foil"))
+    jumbo_alvo = bool(registro.get("jumbo")) or detectar_jumbo(registro.get("foil"))
+    resultado = []
+    for a in anuncios:
+        try:
+            preco = float(a.get("preco"))
+        except (TypeError, ValueError):
+            continue
+        if preco <= 0 or bool(a.get("jumbo")) != jumbo_alvo:
+            continue
+        # Mesmo que o catálogo não costume ter variantes de foil, não usar
+        # o acabamento de outra versão como substituto silencioso.
+        if normalizar_foil(a.get("foil", "Normal")) != foil_alvo:
+            continue
+        resultado.append(a)
+    return resultado
+
+
+def _ajuste_estado(origem: str | None, destino: str | None) -> tuple[float, int]:
+    origem = normalizar_estado(origem)
+    destino = normalizar_estado(destino)
+    if not origem or not destino:
+        return 1.0, 0
+    degraus = ORDEM_ESTADOS_ESTIMATIVA.index(origem) - ORDEM_ESTADOS_ESTIMATIVA.index(destino)
+    # ex.: SP -> NM: +12%; NM -> SP: -10,71%.
+    fator = AJUSTE_POR_DEGRAU_ESTADO ** degraus
+    return round(max(0.60, min(1.80, fator)), 6), abs(degraus)
+
+
+def _cotacao_condicao(anuncios: list[dict], idioma: str | None, estado: str) -> dict | None:
+    """Precificação hierárquica com proveniência explícita.
+
+    >= 2 ofertas exatas => estatística observada.
+    1 oferta exata => menor preço observado; demais indicadores estimados
+    com amostra maior. 0 => tudo estimado. Amostras de outra condição
+    são corrigidas pela distância de conservação. O idioma é alterado
+    sem multiplicador, e essa limitação é registrada.
+    """
+    idioma = normalizar_idioma(idioma)
+    estado = normalizar_estado(estado)
+    if not estado:
+        return None
+
+    def idioma_oferta(a):
+        return normalizar_idioma(a.get("idioma"))
+
+    def estado_oferta(a):
+        return normalizar_estado(a.get("estado"))
+
+    exatas = [a for a in anuncios if estado_oferta(a) == estado and idioma_oferta(a) == idioma]
+    if len(exatas) >= AMOSTRAS_MINIMAS:
+        stats = resumo_anuncios(exatas)
+        if not stats:
+            return None
+        stats["cotacao_info"] = {
+            "tipo": "direta", "confianca": "alta" if len(exatas) >= 5 else "media",
+            "amostras_exatas": len(exatas), "amostras_referencia": 0,
+            "idioma_solicitado": idioma, "idioma_usado": idioma,
+            "estado_solicitado": estado, "estado_usado": estado,
+            "ajuste_estado_percentual": 0.0, "metodo": "precos_observados",
+            "indicadores_estimados": [],
+            "observacao": "Todos os indicadores foram calculados com ofertas equivalentes.",
+        }
+        return stats
+
+    grupos = defaultdict(list)
+    for a in anuncios:
+        # ofertas sem idioma/estado ainda podem ser último recurso, identificadas no relatório
+        grupos[(idioma_oferta(a), estado_oferta(a))].append(a)
+
+    def prioridade(item):
+        (lingua, condicao), lista = item
+        # Primeiro prioriza amostras suficientes e estado igual.
+        # Para estrangeiro, prefere BR caso haja oferta; caso contrário,
+        # usa o idioma de maior abundância dentro do mesmo degrau.
+        mesmo_estado = condicao == estado
+        fator, degraus = _ajuste_estado(condicao, estado)
+        return (
+            len(lista) < AMOSTRAS_MINIMAS,
+            not mesmo_estado,
+            (lingua != "Português") if idioma != "Português" else False,
+            degraus if condicao else 50,
+            -len(lista),
+            lingua or "~",
+        )
+
+    alternativas = [item for item in grupos.items()
+                    if item[0] != (idioma, estado)]
+    alternativas.sort(key=prioridade)
+    base = alternativas[0] if alternativas else None
+    if not base and not exatas:
+        return None
+
+    if base:
+        (idioma_base, estado_base), lista_base = base
+        resumo_base = resumo_anuncios(lista_base)
+    else:
+        idioma_base, estado_base, lista_base = idioma, estado, []
+        resumo_base = None
+
+    if resumo_base:
+        fator, degraus = _ajuste_estado(estado_base, estado)
+        stats = {c: round(float(resumo_base[c]) * fator, 2)
+                 for c in ("menor", "media", "mediana", "maior")}
+    else:
+        fator, degraus = 1.0, 0
+        stats = resumo_anuncios(exatas)
+        if not stats:
+            return None
+
+    indicadores_estimados = ["menor", "media", "mediana", "maior"]
+    if exatas:
+        # Respeita o menor anúncio real, mesmo se o restante vier de outra condição.
+        stats["menor"] = round(min(float(a["preco"]) for a in exatas), 2)
+        indicadores_estimados.remove("menor")
+
+    tipo = "mista" if exatas and base else "estimada"
+    sem_ajuste = estado_base is None and base is not None
+    motivo = []
+    if len(exatas) < AMOSTRAS_MINIMAS:
+        motivo.append(f"somente {len(exatas)} oferta(s) exata(s), mínimo recomendado: {AMOSTRAS_MINIMAS}")
+    if idioma_base != idioma:
+        motivo.append(f"idioma substituto: {idioma_base or 'não identificado'} (sem conversão de preço)")
+    if estado_base != estado:
+        if sem_ajuste:
+            motivo.append("estado de referência não identificado; sem ajuste de conservação")
+        else:
+            motivo.append(f"estado substituto: {estado_base}; ajuste: {(fator-1)*100:+.2f}%")
+    if not base:
+        motivo.append("apenas uma oferta disponível: todos os indicadores são pouco confiáveis")
+
+    stats["anuncios"] = len(exatas) + len(lista_base)
+    alerta_incoerencia = stats["menor"] > stats["media"]
+    if alerta_incoerencia:
+        motivo.append("ATENÇÃO: menor observado acima da média estimada; métricas têm fontes distintas")
+    stats["cotacao_info"] = {
+        "tipo": tipo,
+        "alerta_minimo_maior_que_media": alerta_incoerencia,
+        "confianca": "baixa" if len(lista_base) < 2 or estado_base != estado else "media",
+        "amostras_exatas": len(exatas), "amostras_referencia": len(lista_base),
+        "idioma_solicitado": idioma, "idioma_usado": idioma_base,
+        "estado_solicitado": estado, "estado_usado": estado_base,
+        "ajuste_estado_percentual": round((fator - 1) * 100, 2),
+        "regra_de_ajuste": f"{(AJUSTE_POR_DEGRAU_ESTADO-1)*100:.0f}% por degrau de conservação; limitada a 60%-180%",
+        "metodo": "fallback_idioma_estado" if base else "amostra_unica",
+        "indicadores_estimados": indicadores_estimados,
+        "observacao": "; ".join(motivo),
+    }
+    return stats
+
+
 def preco_para_dono_anuncios(
     anuncios: list[dict],
     registro: dict,
     permite_foil: bool,
 ) -> dict | None:
-    return resumo_anuncios(filtrar_anuncios_do_dono(anuncios, registro, permite_foil))
+    anuncios = _ofertas_compativeis(anuncios, registro, permite_foil)
+    idioma = normalizar_idioma(registro.get("lingua") or registro.get("idioma"))
+    if estado_desconhecido(registro):
+        return preco_medio_entre_sp_mp(
+            _cotacao_condicao(anuncios, idioma, "SP"),
+            _cotacao_condicao(anuncios, idioma, "MP"),
+        )
+    estado = normalizar_estado(registro.get("estado"))
+    if not estado:
+        return None
+    return _cotacao_condicao(anuncios, idioma, estado)
 
 
 def chave_preco_exato(estado: str, idioma: str, foil: str, jumbo: bool,
@@ -1293,7 +1495,19 @@ def precos_por_combinacao(anuncios: list[dict], permite_foil: bool) -> dict:
 
 
 def preco_para_dono_catalogo(catalogo: dict, registro: dict) -> dict | None:
-    """Cache exato; evita usar preço incorreto de outro foil/idioma."""
+    """Reusa o mesmo cálculo da MYP quando o catálogo tem amostras auditáveis."""
+    if "amostras_precificacao" in catalogo:
+        return preco_para_dono_anuncios(
+            catalogo.get("amostras_precificacao") or [], registro,
+            bool(catalogo.get("permite_variantes_foil", False)),
+        )
+    # Compatibilidade com catálogo v5.1: sem amostras, apenas dados observados
+    # exatos; nunca usar a média de outro idioma/foil sem proveniência.
+    if estado_desconhecido(registro):
+        return preco_medio_entre_sp_mp(
+            preco_para_dono_catalogo(catalogo, dict(registro, estado="SP")),
+            preco_para_dono_catalogo(catalogo, dict(registro, estado="MP")),
+        )
     estado = normalizar_estado(registro.get("estado"))
     idioma = normalizar_idioma(registro.get("lingua") or registro.get("idioma"))
     if not estado or not idioma:
@@ -1302,21 +1516,17 @@ def preco_para_dono_catalogo(catalogo: dict, registro: dict) -> dict | None:
         jumbo = bool(registro.get("jumbo")) or detectar_jumbo(registro.get("foil"))
         chave = chave_preco_exato(estado, idioma, registro.get("foil", "Normal"),
                                  jumbo, bool(catalogo.get("permite_variantes_foil", False)))
-        return catalogo["precos_por_combinacao"].get(chave)
-
-    # Catálogos antigos podem não conter combinações exatas. Não atribuir
-    # preços agregados quando há variantes foil ou tamanho incompatíveis.
-    if catalogo.get("precos_por_foil") or catalogo.get("precos_por_tamanho"):
+        achado = catalogo["precos_por_combinacao"].get(chave)
+        if achado and achado.get("anuncios", 0) >= AMOSTRAS_MINIMAS:
+            return dict(achado, cotacao_info={
+                "tipo": "direta", "confianca": "media", "metodo": "cache_legacy_exato",
+                "amostras_exatas": achado["anuncios"], "amostras_referencia": 0,
+                "idioma_solicitado": idioma, "idioma_usado": idioma,
+                "estado_solicitado": estado, "estado_usado": estado,
+                "indicadores_estimados": [], "observacao": "Cache antigo sem amostras individuais.",
+            })
         return None
-    grupo = grupo_idioma(idioma)
-    bloco = catalogo.get("precos_por_idioma", {}).get(grupo, {})
-    stats = bloco.get("por_estado", {}).get(estado)
-    # O agrupamento legado mistura Inglês, Alemão etc. Apenas BR é inequívoco.
-    if grupo != "BR":
-        return None
-    if not stats:
-        return None
-    return {k: stats.get(k) for k in ("menor", "media", "mediana", "maior", "anuncios")}
+    return None
 
 
 # ============================================================
@@ -1414,6 +1624,14 @@ def coletar_carta_myp(
         "caminho_foto": imagem,
         "link_myp": url_final,
         "precos_por_combinacao": precos_por_combinacao(todos_anuncios, permite_foil),
+        # Dados anônimos mínimos para reprodução de fallback no modo Registrar;
+        # nunca guardar vendedor, nem substituir estatísticas observadas por estimadas.
+        "amostras_precificacao": [
+            {"preco": a["preco"], "estado": a.get("estado"),
+             "idioma": a.get("idioma"), "foil": a.get("foil", "Normal"),
+             "jumbo": bool(a.get("jumbo"))}
+            for a in todos_anuncios if a.get("preco") is not None
+        ],
         "permite_variantes_foil": permite_foil,
     }
 
@@ -1450,6 +1668,11 @@ def criar_registro_leon(
         "preco_medio": precos.get("media") if precos else None,
         "mediana_preco": precos.get("mediana") if precos else None,
         "maior_preco": precos.get("maior") if precos else None,
+        "cotacao_info": (precos.get("cotacao_info") if precos else {
+            "tipo": "sem_cotacao", "confianca": "indisponivel", "amostras_exatas": 0,
+            "amostras_referencia": 0,
+            "observacao": "Sem ofertas aproveitáveis da mesma variante/tamanho ou falha de coleta."
+        }),
         "quantidade": fonte.get("quantidade", 1),
         "tags_extras": tags_extras_registro(fonte),
         "data_hora_coleta": catalogo.get("data_hora_coleta"),
@@ -1482,7 +1705,7 @@ def agrupar_registros_leon(registros: list[dict], carta: dict) -> dict:
     # Tags devem ficar somente nos exemplares que as possuem.
     atributos = (
         "estado", "idioma", "foil", "tags_extras",
-        "menor_preco", "preco_medio", "mediana_preco", "maior_preco",
+        "menor_preco", "preco_medio", "mediana_preco", "maior_preco", "cotacao_info",
     )
     comuns = {}
     compartilhados = set()
@@ -1530,12 +1753,27 @@ def _fmt_preco(valor) -> str:
 def texto_preco_dono(registro_leon: dict) -> str:
     estado = texto_normalizado(registro_leon.get("estado")) or "?"
     grupo = grupo_idioma(registro_leon.get("idioma")) or "?"
+    info = registro_leon.get("cotacao_info") or {}
+    tipo = info.get("tipo", "sem_informacao")
+    extra = ""
+    if tipo != "direta":
+        detalhes = info.get("observacao", "")
+        if info.get("metodo") == "media_simples_sp_mp":
+            refs = info.get("referencias", {})
+            resumo = []
+            for estado_ref in ("SP", "MP"):
+                r = refs.get(estado_ref) or {}
+                resumo.append(f"{estado_ref}:{r.get('tipo','?')} "
+                              f"({r.get('estado_usado') or '?'} / {r.get('idioma_usado') or '?'})")
+            detalhes += " | " + " ; ".join(resumo)
+        extra = f" | {tipo.upper()} [{info.get('amostras_exatas',0)} exatas / " \
+                f"{info.get('amostras_referencia',0)} referência] {detalhes}"
     return (
         f"{estado} {grupo} | "
         f"{_fmt_preco(registro_leon.get('menor_preco'))} | "
         f"{_fmt_preco(registro_leon.get('preco_medio'))} | "
         f"{_fmt_preco(registro_leon.get('mediana_preco'))} | "
-        f"{_fmt_preco(registro_leon.get('maior_preco'))}"
+        f"{_fmt_preco(registro_leon.get('maior_preco'))}{extra}"
     )
 
 
@@ -1687,6 +1925,8 @@ class Montante:
         self.unidades = 0
         self.soma_percentual = 0.0
         self.unidades_comparaveis = 0
+        self.unidades_estimadas = 0
+        self.unidades_diretas = 0
 
     def adicionar(self, r: dict, quantidade: int):
         if quantidade <= 0:
@@ -1697,6 +1937,12 @@ class Montante:
         self.sem_min += sem_min
         self.sem_med += sem_med
         self.unidades += quantidade
+        if minimo is not None or medio is not None:
+            info = r.get("cotacao_info") or {}
+            if info.get("tipo") == "direta":
+                self.unidades_diretas += quantidade
+            else:
+                self.unidades_estimadas += quantidade
 
     def comparar(self, velho: dict, novo: dict, quantidade: int):
         if quantidade <= 0:
@@ -1710,6 +1956,8 @@ class Montante:
     def resumo(self, *, cotizacao=False) -> str:
         texto = (f"MONTANTE DA LEVA: mínimo R$ {self.minimo:,.2f} | "
                  f"médio R$ {self.medio:,.2f} | {self.unidades} unidades")
+        texto += (f" | cotação direta: {self.unidades_diretas} un."
+                  f" | estimativa/mista: {self.unidades_estimadas} un.")
         if self.sem_min or self.sem_med:
             texto += (f" | sem preço: {self.sem_min} (mínimo), "
                       f"{self.sem_med} (média); totais parciais")
@@ -1809,6 +2057,8 @@ def registrar(caminho_fonte: Path):
     print(f"\nREGISTRAR | {caminho_fonte.name} -> {caminho_dono.name}")
     print(f"{len(grupos)} cartas distintas, {len(registros)} combinações de variantes")
     print("preços: menor | média | mediana | maior (R$)")
+    print("Fallback: abaixo de 2 ofertas, substitui idioma/estado com auditoria.")
+    print("Estado ?: média SP/MP (podendo estimar referência ausente).")
     print("Registro incremental: cartas/variantes iguais não serão duplicadas.\n")
     preparar_salvamento([ARQUIVO_CARTAS, caminho_dono])
     sessao = requests.Session()
@@ -2007,7 +2257,9 @@ def cotizar(caminho_dono: Path, dias: float):
     limite = datetime.now().astimezone() - timedelta(days=dias)
     print(f"\nCOTIZAR | {caminho_dono.name} | intervalo mínimo: {dias:g} dia(s)")
     print("0 dias = cotizar todas, inclusive as cotizadas agora")
-    print("preços: menor | média | mediana | maior (R$)\n")
+    print("preços: menor | média | mediana | maior (R$)")
+    print("Fallback: abaixo de 2 ofertas, substitui idioma/estado com auditoria.")
+    print("Estado ?: média SP/MP (podendo estimar referência ausente).\n")
     preparar_salvamento([ARQUIVO_CARTAS, caminho_dono])
     sessao = requests.Session()
     montante = Montante()
@@ -2145,7 +2397,7 @@ def escolher_dias() -> float:
 
 def main():
     ap = argparse.ArgumentParser(
-        description="MYP v5.0: registrar novidades sem duplicatas ou cotizar coleções formatadas."
+        description="MYP v5.2: registrar novidades sem duplicatas ou cotizar coleções formatadas."
     )
     ap.add_argument("--modo", choices=["registrar", "cotizar"],
                     help="Opcional. Sem o argumento, abre o menu interativo.")
@@ -2156,7 +2408,7 @@ def main():
     try:
         modo = args.modo
         if not modo:
-            print("\nCOLETOR MYP v5.0")
+            print("\nCOLETOR MYP v5.2")
             print("  1. Registrar novidades de um JSON pessoal")
             print("  2. Cotizar um JSON pessoal Formatado")
             while True:
